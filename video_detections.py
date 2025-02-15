@@ -161,7 +161,7 @@ def main():
 
                     # Capture and process frame
                     (main_frame, lores_frame), metadata = picam2.capture_arrays(["main", "lores"])
-                    main_frame_bgr = main_frame[:, :, [3, 2, 1]]  # Take only RGB channels in BGR order
+                    main_frame_bgr = main_frame[:, :, [1, 2, 3]]  # Take only RGB channels in BGR order
 
                     # Write frame if we're currently saving
                     if saving_video and video_writer is not None:
