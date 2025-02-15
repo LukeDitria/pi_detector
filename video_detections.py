@@ -120,7 +120,7 @@ def main():
 
     # Parse video size
     video_w, video_h = map(int, args.video_size.split(','))
-    frame_size = (video_w, video_h)
+    video_frame_size = (video_h, video_w)
 
     # Calculate frame skip for YOLO processing
     yolo_frame_interval = args.video_fps // args.yolo_fps
@@ -186,6 +186,15 @@ def main():
                             seq_detections += 1
                             frames_since_detection = 0
 
+                            # Log detections
+                            timestamp = time.strftime("%Y%m%d-%H%M%S")
+                            log_filename = f"hailo-{timestamp}"
+                            log_detection(log_filename, json_detections_path, detections)
+
+                            print(f"Detected {len(detections)} objects in {log_filename}")
+                            for class_name, _, score in detections:
+                                print(f"- {class_name} with confidence {score:.2f}")
+
                             if seq_detections == args.num_dets and not saving_video:
                                 saving_video = True
 
@@ -195,19 +204,12 @@ def main():
 
                                 # Create video writer
                                 video_path = os.path.join(video_detections_path, f"{current_filename}.mp4")
-                                video_writer = create_video_writer(video_path, args.video_fps, frame_size)
+                                video_writer = create_video_writer(video_path, args.video_fps, video_frame_size)
 
                                 # Write buffered frames
                                 for buffered_frame in frame_buffer.get_buffer_frames():
                                     print("logging buffers")
                                     video_writer.write(buffered_frame)
-
-                                # Log detections
-                                log_detection(current_filename, json_detections_path, detections)
-
-                                print(f"Detected {len(detections)} objects in {current_filename}")
-                                for class_name, _, score in detections:
-                                    print(f"- {class_name} with confidence {score:.2f}")
                         else:
                             frames_since_detection += yolo_frame_interval
                             seq_detections = 0
