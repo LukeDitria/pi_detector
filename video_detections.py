@@ -103,7 +103,7 @@ def log_detection(filename, output_dir, detections):
 
 def create_video_writer(filename, fps, frame_size):
     """Create a VideoWriter object for saving video."""
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    fourcc = cv2.VideoWriter_fourcc(*'MJPG')
     return cv2.VideoWriter(filename, fourcc, fps, frame_size)
 
 
@@ -203,7 +203,7 @@ def main():
                                 current_filename = f"hailo-{timestamp}"
 
                                 # Create video writer
-                                video_path = os.path.join(video_detections_path, f"{current_filename}.mp4")
+                                video_path = os.path.join(video_detections_path, f"{current_filename}.avi")
                                 video_writer = create_video_writer(video_path, args.video_fps, video_frame_size)
 
                                 # Write buffered frames
