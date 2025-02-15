@@ -164,7 +164,7 @@ def main():
 
                     # Write frame if we're currently saving
                     if saving_video and video_writer is not None:
-                        print(main_frame.shape)
+                        print(lores_frame.shape)
                         video_writer.write(main_frame)
 
                     # Add frame to buffer
