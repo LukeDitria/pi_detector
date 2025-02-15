@@ -100,13 +100,6 @@ def log_detection(filename, output_dir, detections):
     with open(json_path, 'w') as f:
         json.dump(results, f, indent=2)
 
-
-def create_video_writer(filename, fps, frame_size):
-    """Create a VideoWriter object for saving video."""
-    fourcc = cv2.VideoWriter_fourcc(*'MJPG')
-    return cv2.VideoWriter(filename, fourcc, fps, frame_size)
-
-
 def main():
     args = parse_arguments()
     time.sleep(10)
@@ -120,7 +113,7 @@ def main():
 
     # Parse video size
     video_w, video_h = map(int, args.video_size.split(','))
-    video_frame_size = (video_h, video_w)
+    video_frame_size = (video_w, video_h)
 
     # Calculate frame skip for YOLO processing
     yolo_frame_interval = args.video_fps // args.yolo_fps
@@ -203,8 +196,9 @@ def main():
                                 current_filename = f"hailo-{timestamp}"
 
                                 # Create video writer
-                                video_path = os.path.join(video_detections_path, f"{current_filename}.avi")
-                                video_writer = create_video_writer(video_path, args.video_fps, video_frame_size)
+                                video_path = os.path.join(video_detections_path, f"{current_filename}.mp4")
+                                fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
+                                video_writer cv2.VideoWriter(video_path, fourcc, args.video_fps, video_frame_size)
 
                                 # Write buffered frames
                                 for buffered_frame in frame_buffer.get_buffer_frames():
