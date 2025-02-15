@@ -161,15 +161,14 @@ def main():
 
                     # Capture and process frame
                     (main_frame, lores_frame), metadata = picam2.capture_arrays(["main", "lores"])
-                    main_frame_bgr = cv2.cvtColor(main_frame, cv2.COLOR_XRGB2BGR)
 
                     # Write frame if we're currently saving
                     if saving_video and video_writer is not None:
-                        print(main_frame_bgr.shape)
-                        video_writer.write(main_frame_bgr)
+                        print(main_frame.shape)
+                        video_writer.write(main_frame)
 
                     # Add frame to buffer
-                    frame_buffer.add_frame(main_frame_bgr)
+                    frame_buffer.add_frame(main_frame)
 
                     # Process detection at YOLO frame rate
                     if frame_count % yolo_frame_interval == 0:
