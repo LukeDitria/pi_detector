@@ -198,7 +198,7 @@ def main():
                                 # Create video writer
                                 video_path = os.path.join(video_detections_path, f"{current_filename}.mp4")
                                 fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
-                                video_writer cv2.VideoWriter(video_path, fourcc, args.video_fps, video_frame_size)
+                                video_writer = cv2.VideoWriter(video_path, fourcc, args.video_fps, video_frame_size)
 
                                 # Write buffered frames
                                 for buffered_frame in frame_buffer.get_buffer_frames():
