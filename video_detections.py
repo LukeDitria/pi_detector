@@ -204,7 +204,7 @@ def main():
                                 # Log detections
                                 log_detection(current_filename, json_detections_path, detections)
 
-                                print(f"Detected {len(detections)} objects in {filename}")
+                                print(f"Detected {len(detections)} objects in {current_filename}")
                                 for class_name, _, score in detections:
                                     print(f"- {class_name} with confidence {score:.2f}")
                         else:
