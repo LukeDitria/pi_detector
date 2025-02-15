@@ -199,6 +199,7 @@ def main():
 
                                 # Write buffered frames
                                 for buffered_frame in frame_buffer.get_buffer_frames():
+                                    print("logging buffers")
                                     video_writer.write(buffered_frame)
 
                                 # Log detections
@@ -216,6 +217,7 @@ def main():
                                 if saving_video:
                                     saving_video = False
                                     if video_writer is not None:
+                                        print("release video_writer")
                                         video_writer.release()
                                         video_writer = None
                                     current_filename = None
