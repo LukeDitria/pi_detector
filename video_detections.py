@@ -139,7 +139,7 @@ def main():
 
         with Picamera2() as picam2:
             # Configure camera streams
-            main = {'size': (video_w, video_h), 'format': 'XRGB8888'}
+            main = {'size': (video_w, video_h), 'format': 'RGB8888'}
             lores = {'size': (model_w, model_h), 'format': 'RGB888'}
 
             print("lores Shape:", lores['size'])
@@ -164,7 +164,6 @@ def main():
 
                     # Write frame if we're currently saving
                     if saving_video and video_writer is not None:
-                        print(lores_frame.shape)
                         video_writer.write(main_frame)
 
                     # Add frame to buffer
