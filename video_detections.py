@@ -139,7 +139,7 @@ def main():
 
         with Picamera2() as picam2:
             # Configure camera streams
-            main = {'size': (video_w, video_h), 'format': 'RGB8888'}
+            main = {'size': (video_w, video_h), 'format': 'XRGB8888'}
             lores = {'size': (model_w, model_h), 'format': 'RGB888'}
 
             print("lores Shape:", lores['size'])
@@ -161,13 +161,14 @@ def main():
 
                     # Capture and process frame
                     (main_frame, lores_frame), metadata = picam2.capture_arrays(["main", "lores"])
+                    main_frame_bgr = main_frame[:, :, [3, 2, 1]]  # Take only RGB channels in BGR order
 
                     # Write frame if we're currently saving
                     if saving_video and video_writer is not None:
-                        video_writer.write(main_frame)
+                        video_writer.write(main_frame_bgr)
 
                     # Add frame to buffer
-                    frame_buffer.add_frame(main_frame)
+                    frame_buffer.add_frame(main_frame_bgr)
 
                     # Process detection at YOLO frame rate
                     if frame_count % yolo_frame_interval == 0:
