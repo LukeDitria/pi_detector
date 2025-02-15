@@ -161,13 +161,15 @@ def main():
 
                     # Capture and process frame
                     (main_frame, lores_frame), metadata = picam2.capture_arrays(["main", "lores"])
+                    main_frame_bgr = cv2.cvtColor(main_frame, cv2.COLOR_XRGB2BGR)
 
                     # Write frame if we're currently saving
                     if saving_video and video_writer is not None:
-                        video_writer.write(main_frame)
+                        print(main_frame_bgr.shape)
+                        video_writer.write(main_frame_bgr)
 
                     # Add frame to buffer
-                    frame_buffer.add_frame(main_frame)
+                    frame_buffer.add_frame(main_frame_bgr)
 
                     # Process detection at YOLO frame rate
                     if frame_count % yolo_frame_interval == 0:
@@ -197,7 +199,7 @@ def main():
 
                                 # Create video writer
                                 video_path = os.path.join(video_detections_path, f"{current_filename}.mp4")
-                                fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
+                                fourcc = cv2.VideoWriter_fourcc(*'avc1')
                                 video_writer = cv2.VideoWriter(video_path, fourcc, args.video_fps, video_frame_size)
 
                                 # Write buffered frames
