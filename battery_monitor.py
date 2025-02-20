@@ -78,7 +78,7 @@ class BatteryMonitor:
                     writer = csv.writer(f)
                     writer.writerow([timestamp, f"{voltage:.2f}", shutdown_reason or "on"])
                 print(f"Logged: Time: {timestamp}, Voltage: {voltage:.2f}V")
-                self.log_battery_to_firestore(voltage, shutdown_reason)
+                self.log_battery_to_firestore(voltage, shutdown_reason or "on")
             except Exception as e:
                 print(f"Error logging data: {e}")
 
@@ -135,10 +135,10 @@ class BatteryMonitor:
 
         # Shutdown if after sunset
         if self.is_after_sunset():
-            self.perform_shutdown("After sunset")
+            self.perform_shutdown("Shutdown! After sunset!")
         # Also shutdown if battery is critically low
         elif current_voltage < 3.20:
-            self.perform_shutdown("Low battery")
+            self.perform_shutdown("Shutdown! Low battery!")
 
 
 def main():
