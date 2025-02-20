@@ -4,8 +4,6 @@ import time
 import numpy as np
 from picamera2 import Picamera2
 from picamera2.devices import Hailo
-from google.cloud import firestore
-from google.cloud import storage
 from datetime import datetime
 
 
@@ -54,44 +52,3 @@ def log_detection(filename, output_dir, detections):
     json_path = os.path.join(output_dir, f"{os.path.splitext(filename)[0]}.json")
     with open(json_path, 'w') as f:
         json.dump(results, f, indent=2)
-
-
-def initialize_cloud_clients(project_id):
-    """Initialize Google Cloud clients."""
-    db = firestore.Client(project=project_id)
-    storage_client = storage.Client(project=project_id)
-    return db, storage_client
-
-
-def upload_image_to_cloud_storage(storage_client, bucket_name, image_path, filename):
-    """Upload image to Google Cloud Storage."""
-    bucket = storage_client.bucket(bucket_name)
-    blob = bucket.blob(f"detections/{filename}")
-    blob.upload_from_filename(image_path)
-    return blob.public_url
-
-
-def log_detection_to_firestore(db, filename, detections, image_url):
-    """Log detection results to Firestore."""
-    doc_ref = db.collection('detections').document(os.path.splitext(filename)[0])
-
-    doc_data = {
-        "timestamp": datetime.now(),
-        "filename": filename,
-        "image_url": image_url,
-        "detections": [
-            {
-                "class": class_name,
-                "confidence": float(score),
-                "bbox": {
-                    "x0": float(bbox[0]),
-                    "y0": float(bbox[1]),
-                    "x1": float(bbox[2]),
-                    "y1": float(bbox[3])
-                }
-            }
-            for class_name, bbox, score in detections
-        ]
-    }
-
-    doc_ref.set(doc_data)
