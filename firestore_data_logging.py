@@ -71,6 +71,11 @@ def main():
     # Initialize Google Cloud clients
     db, storage_client = initialize_cloud_clients(args.project_id)
 
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+    doc_ref = db.collection('startup').document(timestamp)
+    doc_data = {"startup": True}
+    doc_ref.set(doc_data)
+
     # Create output directories
     os.makedirs(args.output_dir, exist_ok=True)
     image_detections_path = os.path.join(args.output_dir, "images")
