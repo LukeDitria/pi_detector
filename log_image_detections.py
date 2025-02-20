@@ -7,6 +7,7 @@ import time
 import numpy as np
 from picamera2 import Picamera2
 from picamera2.devices import Hailo
+import utils
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Hailo object detection on camera stream")
@@ -40,9 +41,9 @@ def main():
     video_w, video_h = map(int, args.video_size.split(','))
 
     # Load class names and valid classes
-    class_names = read_class_list(args.labels)
+    class_names = utils.read_class_list(args.labels)
     if args.valid_classes:
-        valid_classes = read_class_list(args.valid_classes)
+        valid_classes = utils.read_class_list(args.valid_classes)
         print(f"Monitoring for classes: {', '.join(sorted(valid_classes))}")
     else:
         valid_classes = None
@@ -77,7 +78,7 @@ def main():
                     results = hailo.run(frame)
                     
                     # Extract and process detections
-                    detections = extract_detections(results, class_names, valid_classes, args.confidence, hailo_aspect)
+                    detections = utils.extract_detections(results, class_names, valid_classes, args.confidence, hailo_aspect)
                     
                     if detections:
                         # Generate filename with timestamp
@@ -89,7 +90,7 @@ def main():
                         cv2.imwrite(lores_path, frame)
                         
                         # Log detections
-                        log_detection(filename, json_detections_path, detections)
+                        utils.log_detection(filename, json_detections_path, detections)
                         
                         print(f"Detected {len(detections)} objects in {filename}")
                         for class_name, _, score in detections:
