@@ -30,6 +30,8 @@ def parse_arguments():
                         help="Frames per second (default: 1)")
     parser.add_argument("--project_id", type=str, required=True,
                         help="Google Cloud project ID")
+    parser.add_argument("--log_remote", action='store_true', help="Log to remote store")
+
     return parser.parse_args()
 
 
@@ -69,12 +71,13 @@ def main():
     time.sleep(10)
 
     # Initialize Google Cloud clients
-    db, storage_client = initialize_cloud_clients(args.project_id)
+    if args.log_remote:
+        db, storage_client = initialize_cloud_clients(args.project_id)
 
-    timestamp = time.strftime("%Y%m%d-%H%M%S")
-    doc_ref = db.collection('startup').document(timestamp)
-    doc_data = {"startup": True}
-    doc_ref.set(doc_data)
+        timestamp = time.strftime("%Y%m%d-%H%M%S")
+        doc_ref = db.collection('startup').document(timestamp)
+        doc_data = {"startup": True}
+        doc_ref.set(doc_data)
 
     # Create output directories
     os.makedirs(args.output_dir, exist_ok=True)
@@ -136,7 +139,8 @@ def main():
                         utils.log_detection(filename, json_detections_path, detections)
 
                         # Log detections to Firestore
-                        log_detection_to_firestore(db, filename, detections)
+                        if args.log_remote:
+                            log_detection_to_firestore(db, filename, detections)
 
                         print(f"Detected {len(detections)} objects in {filename}")
                         for class_name, _, score in detections:

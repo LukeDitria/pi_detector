@@ -21,13 +21,16 @@ def parse_arguments():
                         help="Logging every (x) minutes (default: 5)")
     parser.add_argument("--project_id", type=str, required=True,
                         help="Google Cloud project ID")
+    parser.add_argument("--log_remote", action='store_true', help="Log to remote store")
+
     return parser.parse_args()
 
 class BatteryMonitor:
-    def __init__(self, log_file_path, project_id):
+    def __init__(self, log_file_path, project_id, log_remote=False):
         self.bus = smbus.SMBus(1)
         self.address = 0x36
         self.log_file = log_file_path # "/home/luke/battery_logs.csv"
+        self.log_remote = log_remote # "/home/luke/battery_logs.csv"
 
         # Replace with your location coordinates and timezone
         self.location = LocationInfo('Melbourne', 'Australia', 'Australia/Melbourne',
@@ -35,8 +38,9 @@ class BatteryMonitor:
         self.timezone = pytz.timezone(self.location.timezone)
         self.ensure_log_file_exists()
 
-        self.db = firestore.Client(project=project_id)
-        self.storage_client = storage.Client(project=project_id)
+        if self.log_remote:
+            self.db = firestore.Client(project=project_id)
+            self.storage_client = storage.Client(project=project_id)
 
     def log_battery_to_firestore(self, battery_voltage, status):
         """Log detection results to Firestore."""
@@ -78,7 +82,8 @@ class BatteryMonitor:
                     writer = csv.writer(f)
                     writer.writerow([timestamp, f"{voltage:.2f}", shutdown_reason or "on"])
                 print(f"Logged: Time: {timestamp}, Voltage: {voltage:.2f}V")
-                self.log_battery_to_firestore(voltage, shutdown_reason or "on")
+                if self.log_remote:
+                    self.log_battery_to_firestore(voltage, shutdown_reason or "on")
             except Exception as e:
                 print(f"Error logging data: {e}")
 
@@ -143,7 +148,7 @@ class BatteryMonitor:
 
 def main():
     args = parse_arguments()
-    monitor = BatteryMonitor(args.log_file_path, args.project_id)
+    monitor = BatteryMonitor(log_file_path=args.log_file_path, project_id=args.project_id, log_remote=args.log_remote)
     time.sleep(5)
 
     print(f"Battery monitoring started. Logging to {monitor.log_file}")
