@@ -72,12 +72,15 @@ def main():
 
     # Initialize Google Cloud clients
     if args.log_remote:
-        db, storage_client = initialize_cloud_clients(args.project_id)
+        try:
+            db, storage_client = initialize_cloud_clients(args.project_id)
 
-        timestamp = time.strftime("%Y%m%d-%H%M%S")
-        doc_ref = db.collection('startup').document(timestamp)
-        doc_data = {"startup": True}
-        doc_ref.set(doc_data)
+            timestamp = time.strftime("%Y%m%d-%H%M%S")
+            doc_ref = db.collection('startup').document(timestamp)
+            doc_data = {"startup": True}
+            doc_ref.set(doc_data)
+        except Exception as e:
+            print(f"Firestore initialization failed: {e}")
 
     # Create output directories
     os.makedirs(args.output_dir, exist_ok=True)
@@ -140,7 +143,10 @@ def main():
 
                         # Log detections to Firestore
                         if args.log_remote:
-                            log_detection_to_firestore(db, filename, detections)
+                            try:
+                                log_detection_to_firestore(db, filename, detections)
+                            except Exception as e:
+                                print(f"Firestore logging failed: {e}")
 
                         print(f"Detected {len(detections)} objects in {filename}")
                         for class_name, _, score in detections:
