@@ -14,23 +14,35 @@ import pytz
 import sys
 import argparse
 
+
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Raspi Battery monitor")
-    parser.add_argument("--log_file_path", type=str, default="battery_logs.csv", help="Directory to save detection results")
+    parser.add_argument("--log_file_path", type=str, default="battery_logs.csv",
+                        help="Directory to save detection results")
     parser.add_argument("--log_rate_min", type=int, default=5,
                         help="Logging every (x) minutes (default: 5)")
     parser.add_argument("--project_id", type=str, required=True,
                         help="Google Cloud project ID")
     parser.add_argument("--log_remote", action='store_true', help="Log to remote store")
-
     return parser.parse_args()
+
 
 class BatteryMonitor:
     def __init__(self, log_file_path, project_id, log_remote=False):
-        self.bus = smbus.SMBus(1)
-        self.address = 0x36
-        self.log_file = log_file_path # "/home/luke/battery_logs.csv"
-        self.log_remote = log_remote # "/home/luke/battery_logs.csv"
+        self.log_file = log_file_path
+        self.log_remote = log_remote
+        self.battery_monitor_available = True
+
+        # Try to initialize the battery monitor
+        try:
+            self.bus = smbus.SMBus(1)
+            self.address = 0x36
+            # Test if we can read from the device
+            self.read_voltage()
+        except Exception as e:
+            print(f"Battery monitor initialization failed: {e}")
+            print("Continuing without battery monitoring")
+            self.battery_monitor_available = False
 
         # Replace with your location coordinates and timezone
         self.location = LocationInfo('Melbourne', 'Australia', 'Australia/Melbourne',
@@ -44,6 +56,9 @@ class BatteryMonitor:
 
     def log_battery_to_firestore(self, battery_voltage, status):
         """Log detection results to Firestore."""
+        if not self.log_remote:
+            return
+
         timestamp = time.strftime("%Y%m%d-%H%M%S")
         doc_ref = self.db.collection('battery').document(timestamp)
 
@@ -53,6 +68,7 @@ class BatteryMonitor:
         }
 
         doc_ref.set(doc_data)
+
     def ensure_log_file_exists(self):
         """Create the log file with headers if it doesn't exist"""
         if not os.path.exists(self.log_file):
@@ -62,6 +78,9 @@ class BatteryMonitor:
 
     def read_voltage(self):
         """Read battery voltage"""
+        if not self.battery_monitor_available:
+            return None
+
         try:
             read = self.bus.read_word_data(self.address, 2)
             swapped = struct.unpack("<H", struct.pack(">H", read))[0]
@@ -69,6 +88,8 @@ class BatteryMonitor:
             return voltage
         except Exception as e:
             print(f"Error reading voltage: {e}")
+            print("Continuing without battery monitoring")
+            self.battery_monitor_available = False
             return None
 
     def log_data(self, shutdown_reason=None):
@@ -76,16 +97,22 @@ class BatteryMonitor:
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         voltage = self.read_voltage()
 
-        if voltage is not None:
-            try:
-                with open(self.log_file, 'a', newline='') as f:
-                    writer = csv.writer(f)
+        try:
+            with open(self.log_file, 'a', newline='') as f:
+                writer = csv.writer(f)
+                if voltage is not None:
                     writer.writerow([timestamp, f"{voltage:.2f}", shutdown_reason or "on"])
-                print(f"Logged: Time: {timestamp}, Voltage: {voltage:.2f}V")
-                if self.log_remote:
-                    self.log_battery_to_firestore(voltage, shutdown_reason or "on")
-            except Exception as e:
-                print(f"Error logging data: {e}")
+                    print(f"Logged: Time: {timestamp}, Voltage: {voltage:.2f}V")
+                else:
+                    writer.writerow([timestamp, "N/A", shutdown_reason or "on (no battery data)"])
+                    print(f"Logged: Time: {timestamp}, Voltage: N/A (battery monitor unavailable)")
+
+            if self.log_remote and voltage is not None:
+                self.log_battery_to_firestore(voltage, shutdown_reason or "on")
+            elif self.log_remote:
+                self.log_battery_to_firestore(None, shutdown_reason or "on (no battery data)")
+        except Exception as e:
+            print(f"Error logging data: {e}")
 
     def is_after_sunset(self):
         """Check if current time is after sunset"""
@@ -133,38 +160,50 @@ class BatteryMonitor:
 
     def check_shutdown_condition(self):
         """Check if it's after sunset or if battery voltage is critically low"""
-        current_voltage = self.read_voltage()
-
-        if current_voltage is None:
-            return
-
         # Shutdown if after sunset
         if self.is_after_sunset():
             self.perform_shutdown("Shutdown! After sunset!")
-        # Also shutdown if battery is critically low
-        elif current_voltage < 3.20:
+
+        # Only check battery voltage if monitor is available
+        if not self.battery_monitor_available:
+            return
+
+        current_voltage = self.read_voltage()
+        if current_voltage is None:
+            return
+
+        # Shutdown if battery is critically low
+        if current_voltage < 3.20:
             self.perform_shutdown("Shutdown! Low battery!")
 
 
 def main():
     args = parse_arguments()
-    monitor = BatteryMonitor(log_file_path=args.log_file_path, project_id=args.project_id, log_remote=args.log_remote)
-    time.sleep(5)
-
-    print(f"Battery monitoring started. Logging to {monitor.log_file}")
 
     try:
+        monitor = BatteryMonitor(
+            log_file_path=args.log_file_path,
+            project_id=args.project_id,
+            log_remote=args.log_remote,
+        )
+        time.sleep(5)
+
+        print(f"Battery monitoring started. Logging to {monitor.log_file}")
+        if not monitor.battery_monitor_available:
+            print("Running in fallback mode without battery monitoring")
+
         while True:
             monitor.log_data()
             monitor.check_shutdown_condition()
 
-            # Wait for 5 minutes (300 seconds)
+            # Wait for specified minutes
             time.sleep(args.log_rate_min * 60)
 
     except KeyboardInterrupt:
         print("\nMonitoring stopped by user")
     except Exception as e:
         print(f"An error occurred: {e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
