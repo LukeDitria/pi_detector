@@ -54,6 +54,9 @@ class BatteryMonitor:
             self.db = firestore.Client(project=project_id)
             self.storage_client = storage.Client(project=project_id)
 
+            if not self.battery_monitor_available:
+                self.log_battery_to_firestore(0, "Failed to communicate")
+
     def log_battery_to_firestore(self, battery_voltage, status):
         """Log detection results to Firestore."""
         if not self.log_remote:

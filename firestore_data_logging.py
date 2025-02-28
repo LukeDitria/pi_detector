@@ -146,6 +146,8 @@ def main():
                         for class_name, _, score in detections:
                             print(f"- {class_name} with confidence {score:.2f}")
 
+                    time.sleep(0.01)
+
             except KeyboardInterrupt:
                 print("\nStopping capture...")
 
