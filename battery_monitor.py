@@ -32,6 +32,7 @@ class BatteryMonitor:
         self.log_file = log_file_path
         self.log_remote = log_remote
         self.battery_monitor_available = True
+        self.firestore_available = True
 
         # Try to initialize the battery monitor
         try:
@@ -50,27 +51,37 @@ class BatteryMonitor:
         self.timezone = pytz.timezone(self.location.timezone)
         self.ensure_log_file_exists()
 
+        # Initialize Firestore with error handling
         if self.log_remote:
-            self.db = firestore.Client(project=project_id)
-            self.storage_client = storage.Client(project=project_id)
-
-            if not self.battery_monitor_available:
-                self.log_battery_to_firestore(0, "Failed to communicate")
+            try:
+                self.db = firestore.Client(project=project_id)
+                self.storage_client = storage.Client(project=project_id)
+                # Test the connection by attempting a simple operation
+                self.db.collection('battery').document('test').get()
+                print("Firestore connection established successfully")
+            except Exception as e:
+                print(f"Firestore initialization failed: {e}")
+                print("Continuing without remote logging")
+                self.firestore_available = False
 
     def log_battery_to_firestore(self, battery_voltage, status):
         """Log detection results to Firestore."""
-        if not self.log_remote:
+        if not self.log_remote or not self.firestore_available:
             return
 
-        timestamp = time.strftime("%Y%m%d-%H%M%S")
-        doc_ref = self.db.collection('battery').document(timestamp)
+        try:
+            timestamp = time.strftime("%Y%m%d-%H%M%S")
+            doc_ref = self.db.collection('battery').document(timestamp)
 
-        doc_data = {
-            "battery_voltage": battery_voltage,
-            "status": status
-        }
+            doc_data = {
+                "battery_voltage": battery_voltage,
+                "status": status
+            }
 
-        doc_ref.set(doc_data)
+            doc_ref.set(doc_data)
+            print(f"Successfully logged to Firestore: {status}")
+        except Exception as e:
+            print(f"Error logging to Firestore: {e}")
 
     def ensure_log_file_exists(self):
         """Create the log file with headers if it doesn't exist"""
@@ -100,6 +111,7 @@ class BatteryMonitor:
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         voltage = self.read_voltage()
 
+        # Always try to log to local file first
         try:
             with open(self.log_file, 'a', newline='') as f:
                 writer = csv.writer(f)
@@ -109,13 +121,18 @@ class BatteryMonitor:
                 else:
                     writer.writerow([timestamp, "N/A", shutdown_reason or "on (no battery data)"])
                     print(f"Logged: Time: {timestamp}, Voltage: N/A (battery monitor unavailable)")
-
-            if self.log_remote and voltage is not None:
-                self.log_battery_to_firestore(voltage, shutdown_reason or "on")
-            elif self.log_remote:
-                self.log_battery_to_firestore(None, shutdown_reason or "on (no battery data)")
         except Exception as e:
-            print(f"Error logging data: {e}")
+            print(f"Error logging to file: {e}")
+
+        # Then try to log to Firestore if enabled
+        if self.log_remote and self.firestore_available:
+            try:
+                if voltage is not None:
+                    self.log_battery_to_firestore(voltage, shutdown_reason or "on")
+                else:
+                    self.log_battery_to_firestore(None, shutdown_reason or "on (no battery data)")
+            except Exception as e:
+                print(f"Error during remote logging: {e}")
 
     def is_after_sunset(self):
         """Check if current time is after sunset"""
@@ -142,24 +159,11 @@ class BatteryMonitor:
         print("Shutting down in 5 seconds...")
         time.sleep(5)
 
-        # Try shutdown commands in order of preference
-        shutdown_commands = [
-            ['sudo', 'shutdown', '-h', 'now'],
-            ['sudo', 'poweroff'],
-            ['sudo', 'halt', '-p']
-        ]
-
-        for cmd in shutdown_commands:
-            try:
-                subprocess.run(cmd, check=True)
-                time.sleep(2)  # Give the command time to take effect
-            except subprocess.CalledProcessError as e:
-                print(f"Failed to shutdown with {cmd}: {e}")
-                continue
-
-        # If we get here, none of the shutdown commands worked
-        print("All shutdown attempts failed!")
-        sys.exit(1)
+        try:
+            subprocess.run(['sudo', 'shutdown', '-h', 'now'], check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Failed to shutdown: {e}")
+            sys.exit(1)
 
     def check_shutdown_condition(self):
         """Check if it's after sunset or if battery voltage is critically low"""
@@ -192,8 +196,16 @@ def main():
         time.sleep(5)
 
         print(f"Battery monitoring started. Logging to {monitor.log_file}")
+
+        # Print status information
+        status_messages = []
         if not monitor.battery_monitor_available:
-            print("Running in fallback mode without battery monitoring")
+            status_messages.append("battery monitoring disabled")
+        if args.log_remote and not monitor.firestore_available:
+            status_messages.append("remote logging disabled")
+
+        if status_messages:
+            print(f"Running with {' and '.join(status_messages)}")
 
         while True:
             monitor.log_data()
