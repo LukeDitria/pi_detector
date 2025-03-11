@@ -52,3 +52,15 @@ def log_detection(filename, output_dir, detections):
     json_path = os.path.join(output_dir, f"{os.path.splitext(filename)[0]}.json")
     with open(json_path, 'w') as f:
         json.dump(results, f, indent=2)
+
+def pre_process_image(image, rotate="cw"):
+    if rotate == "cw":
+        image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
+    elif rotate == "ccw":
+        image = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    elif rotate == "flip":
+        image = cv2.rotate(image, cv2.ROTATE_180)
+
+    return image
+
+

@@ -7,6 +7,8 @@ import time
 import numpy as np
 from picamera2 import Picamera2
 from picamera2.devices import Hailo
+from picamera2.encoders import H264Encoder
+from picamera2.outputs import CircularOutput
 import utils
 
 def parse_arguments():
@@ -24,6 +26,10 @@ def parse_arguments():
                        help="Video size as width,height (default: 1920,1080)")
     parser.add_argument("--fps", type=int, default=1,
                        help="Frames per second (default: 1)")
+    parser.add_argument("--buffer_secs", type=int, default=3,
+                       help="The Circular buffer size in seconds (default: 3)")
+    parser.add_argument("--save_video", action='store_true', help="Save video clips of detections")
+
     return parser.parse_args()
 
 def main():
@@ -54,7 +60,9 @@ def main():
         model_h, model_w, *_ = hailo.get_input_shape()
         print("Input Shape:", model_h, model_w)
         hailo_aspect = model_w/model_h
-        
+        detections_run = 0
+        encoding = False
+
         with Picamera2() as picam2:
             # Configure camera streams
             main = {'size': (video_w, video_h), 'format': 'XRGB8888'}
@@ -70,6 +78,13 @@ def main():
             picam2.configure(config)
             picam2.start()
 
+            if args.save_video:
+                encoder = H264Encoder(1000000, repeat=True)
+                encoder.output = CircularOutput(buffersize=args.buffer_secs * args.fps)
+                picam2.start_encoder(encoder)
+                videos_detections_path = os.path.join(args.output_dir, "videos")
+                os.makedirs(videos_detections_path, exist_ok=True)
+
             try:
                 while True:
                     # Capture and process frame
@@ -81,6 +96,8 @@ def main():
                     detections = utils.extract_detections(results, class_names, valid_classes, args.confidence, hailo_aspect)
                     
                     if detections:
+                        detections_run += 1
+
                         # Generate filename with timestamp
                         timestamp = time.strftime("%Y%m%d-%H%M%S")
                         filename = f"hailo-{timestamp}.jpg"
@@ -95,7 +112,23 @@ def main():
                         print(f"Detected {len(detections)} objects in {filename}")
                         for class_name, _, score in detections:
                             print(f"- {class_name} with confidence {score:.2f}")
-                        
+                    else:
+                        detections_run -= 1
+                        detections_run = max(detections_run, 0)
+
+                    if args.save_video:
+                        if detections_run > 5:
+                            if not encoding:
+                                epoch = int(time.time())
+                                file_name = os.path.join(videos_detections_path, f"{epoch}.h264")
+                                encoder.output.fileoutput = file_name
+                                encoder.output.start()
+                                encoding = True
+                        else:
+                            if encoding:
+                                encoder.output.stop()
+                                encoding = False
+
             except KeyboardInterrupt:
                 print("\nStopping capture...")
             
