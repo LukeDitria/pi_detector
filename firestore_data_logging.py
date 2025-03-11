@@ -5,8 +5,11 @@ import cv2
 import os
 import time
 import numpy as np
-from picamera2 import Picamera2
+from picamera2 import Picamera2, Preview
 from picamera2.devices import Hailo
+from picamera2.encoders import H264Encoder
+from picamera2.outputs import CircularOutput
+
 from google.cloud import firestore
 from google.cloud import storage
 from datetime import datetime
@@ -18,10 +21,12 @@ def parse_arguments():
     parser.add_argument("--output_dir", type=str, required=True, help="Directory to save detection results")
     parser.add_argument("--model", type=str, default="/usr/share/hailo-models/yolov8s_h8.hef",
                         help="Path for the HEF model")
-    parser.add_argument("--labels", type=str, default="examples/hailo/coco.txt",
+    parser.add_argument("--labels", type=str, default="coco.txt",
                         help="Path to a text file containing labels")
     parser.add_argument("--valid_classes", type=str,
                         help="Path to text file containing list of valid class names to detect")
+    parser.add_argument("--rotate_img", type=str,
+                        help="Rotate/flip the input image, cw, ccw, flip")
     parser.add_argument("--confidence", type=float, default=0.5,
                         help="Confidence threshold (default: 0.5)")
     parser.add_argument("--video_size", type=str, default="1280,640",
@@ -31,6 +36,7 @@ def parse_arguments():
     parser.add_argument("--project_id", type=str, required=True,
                         help="Google Cloud project ID")
     parser.add_argument("--log_remote", action='store_true', help="Log to remote store")
+    parser.add_argument("--create_preview", action='store_true', help="Display the camera output")
 
     return parser.parse_args()
 
@@ -68,7 +74,6 @@ def log_detection_to_firestore(db, filename, detections):
 
 def main():
     args = parse_arguments()
-    time.sleep(10)
 
     # Initialize Google Cloud clients
     if args.log_remote:
@@ -107,6 +112,8 @@ def main():
         model_h, model_w, *_ = hailo.get_input_shape()
         print("Input Shape:", model_h, model_w)
         hailo_aspect = model_w / model_h
+        detections_run = 0
+        encoding = False
 
         with Picamera2() as picam2:
             # Configure camera streams
@@ -117,12 +124,26 @@ def main():
 
             config = picam2.create_still_configuration(main, lores=lores, controls=controls)
             picam2.configure(config)
+
+            if args.create_preview:
+                picam2.start_preview(Preview.QTGL, x=0, y=0, width=video_w, height=video_h)
+
             picam2.start()
+
+            if args.save_video:
+                encoder = H264Encoder(1000000, repeat=True)
+                encoder.output = CircularOutput(buffersize=args.buffer_secs * args.fps)
+                picam2.start_encoder(encoder)
+                videos_detections_path = os.path.join(args.output_dir, "videos")
+                os.makedirs(videos_detections_path, exist_ok=True)
 
             try:
                 while True:
                     # Capture and process frame
                     (main_frame, frame), metadata = picam2.capture_arrays(["main", "lores"])
+
+                    if args.rotate_img:
+                        frame = utils.pre_process_image(frame, args.rotate_img)
 
                     results = hailo.run(frame)
 
@@ -130,6 +151,8 @@ def main():
                     detections = utils.extract_detections(results, class_names, valid_classes, args.confidence, hailo_aspect)
 
                     if detections:
+                        detections_run += 1
+
                         # Generate filename with timestamp
                         timestamp = time.strftime("%Y%m%d-%H%M%S")
                         filename = f"{timestamp}.jpg"
@@ -152,7 +175,22 @@ def main():
                         for class_name, _, score in detections:
                             print(f"- {class_name} with confidence {score:.2f}")
 
-                    time.sleep(0.01)
+                    else:
+                        detections_run -= 1
+                        detections_run = max(detections_run, 0)
+
+                    if args.save_video:
+                        if detections_run > 5:
+                            if not encoding:
+                                epoch = int(time.time())
+                                file_name = os.path.join(videos_detections_path, f"{epoch}.h264")
+                                encoder.output.fileoutput = file_name
+                                encoder.output.start()
+                                encoding = True
+                        else:
+                            if encoding:
+                                encoder.output.stop()
+                                encoding = False
 
             except KeyboardInterrupt:
                 print("\nStopping capture...")
