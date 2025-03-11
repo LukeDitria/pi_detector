@@ -76,7 +76,7 @@ def main():
             print("lores Shape:", lores['size'])
             controls = {'FrameRate': args.fps}
             
-            config = picam2.create_still_configuration(main, lores=lores, controls=controls)
+            config = picam2.create_video_configuration(main, lores=lores, controls=controls)
             picam2.configure(config)
             picam2.start()
 
