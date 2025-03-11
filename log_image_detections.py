@@ -16,7 +16,7 @@ def parse_arguments():
     parser.add_argument("--output_dir", type=str, required=True, help="Directory to save detection results")
     parser.add_argument("--model", type=str, default="/usr/share/hailo-models/yolov8s_h8.hef",
                        help="Path for the HEF model")
-    parser.add_argument("--labels", type=str, default="examples/hailo/coco.txt",
+    parser.add_argument("--labels", type=str, default="coco.txt",
                        help="Path to a text file containing labels")
     parser.add_argument("--valid_classes", type=str,
                        help="Path to text file containing list of valid class names to detect")
@@ -34,7 +34,7 @@ def parse_arguments():
 
 def main():
     args = parse_arguments()
-    time.sleep(10)
+    # time.sleep(10)
     
     # Create output directories
     os.makedirs(args.output_dir, exist_ok=True)
