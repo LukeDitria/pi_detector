@@ -24,6 +24,8 @@ def parse_arguments():
                        help="Confidence threshold (default: 0.5)")
     parser.add_argument("--video_size", type=str, default="1280,640",
                        help="Video size as width,height (default: 1920,1080)")
+    parser.add_argument("--rotate_img", type=str,
+                        help="Rotate/flip the input image, cw, ccw, flip")
     parser.add_argument("--fps", type=int, default=1,
                        help="Frames per second (default: 1)")
     parser.add_argument("--buffer_secs", type=int, default=3,
@@ -89,6 +91,9 @@ def main():
                 while True:
                     # Capture and process frame
                     (main_frame, frame), metadata = picam2.capture_arrays(["main", "lores"])
+
+                    if args.rotate_img:
+                        frame = utils.pre_process_image(frame, args.rotate_img)
 
                     results = hailo.run(frame)
                     
