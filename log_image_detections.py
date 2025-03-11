@@ -130,7 +130,7 @@ def main():
                                 encoder.output.start()
                                 encoding = True
                         else:
-                            if encoding:
+                            if encoding and detections_run == 0:
                                 encoder.output.stop()
                                 encoding = False
 
