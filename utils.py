@@ -62,7 +62,7 @@ def pre_process_image(image, rotate="cw", h=640, w=640):
         image = cv2.rotate(image, cv2.ROTATE_180)
 
     # assuming that w > h
-    h, w, _ = image.size
+    h, w, _ = image.size()
     if not h == w:
         split = (w - h)//2
         image = image[split:split+h]
