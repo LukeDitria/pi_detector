@@ -33,8 +33,11 @@ def parse_arguments():
                         help="Frames per second (default: 1)")
     parser.add_argument("--project_id", type=str,
                         help="Google Cloud project ID")
+    parser.add_argument("--buffer_secs", type=int, default=3,
+                       help="The Circular buffer size in seconds (default: 3)")
     parser.add_argument("--log_remote", action='store_true', help="Log to remote store")
     parser.add_argument("--create_preview", action='store_true', help="Display the camera output")
+    parser.add_argument("--save_video", action='store_true', help="Save video clips of detections")
 
     return parser.parse_args()
 
