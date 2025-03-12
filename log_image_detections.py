@@ -22,10 +22,10 @@ def parse_arguments():
                        help="Path to text file containing list of valid class names to detect")
     parser.add_argument("--confidence", type=float, default=0.5,
                        help="Confidence threshold (default: 0.5)")
-    parser.add_argument("--video_size", type=str, default="1280,640",
+    parser.add_argument("--video_size", type=str, default="1920,1080",
                        help="Video size as width,height (default: 1920,1080)")
     parser.add_argument("--rotate_img", type=str,
-                        help="Rotate/flip the input image, cw, ccw, flip")
+                        help="Rotate/flip the input image: none, cw, ccw, flip", default="none")
     parser.add_argument("--fps", type=int, default=1,
                        help="Frames per second (default: 1)")
     parser.add_argument("--buffer_secs", type=int, default=3,
@@ -70,8 +70,8 @@ def main():
             main = {'size': (video_w, video_h), 'format': 'XRGB8888'}
             # Configure lores to maintain aspect ratio
 
-            # lores_w = int(round(model_w * (video_w/video_h)))
-            lores = {'size': (model_w, model_h), 'format': 'RGB888'}
+            lores_w = int(round(model_w * (video_w/video_h)))
+            lores = {'size': (lores_w, model_h), 'format': 'RGB888'}
                 
             print("lores Shape:", lores['size'])
             controls = {'FrameRate': args.fps}
@@ -92,8 +92,7 @@ def main():
                     # Capture and process frame
                     (main_frame, frame), metadata = picam2.capture_arrays(["main", "lores"])
 
-                    if args.rotate_img:
-                        frame = utils.pre_process_image(frame, args.rotate_img)
+                    frame = utils.pre_process_image(frame, rotate=args.rotate_img, h=model_h, w=model_w)
 
                     results = hailo.run(frame)
                     
