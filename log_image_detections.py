@@ -92,7 +92,7 @@ def main():
                     # Capture and process frame
                     (main_frame, frame), metadata = picam2.capture_arrays(["main", "lores"])
 
-                    frame = utils.pre_process_image(frame, rotate=args.rotate_img, h=model_h, w=model_w)
+                    frame = utils.pre_process_image(frame, rotate=args.rotate_img, h=lores_w, w=model_w)
 
                     results = hailo.run(frame)
                     
