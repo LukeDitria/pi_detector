@@ -10,8 +10,6 @@ from picamera2.devices import Hailo
 from picamera2.encoders import H264Encoder
 from picamera2.outputs import CircularOutput
 
-from google.cloud import firestore
-from google.cloud import storage
 from datetime import datetime
 import utils
 
@@ -26,7 +24,7 @@ def parse_arguments():
     parser.add_argument("--valid_classes", type=str,
                         help="Path to text file containing list of valid class names to detect")
     parser.add_argument("--rotate_img", type=str,
-                        help="Rotate/flip the input image, cw, ccw, flip")
+                        help="Rotate/flip the input image: none, cw, ccw, flip", default="none")
     parser.add_argument("--confidence", type=float, default=0.5,
                         help="Confidence threshold (default: 0.5)")
     parser.add_argument("--video_size", type=str, default="1280,640",
@@ -77,6 +75,9 @@ def main():
 
     # Initialize Google Cloud clients
     if args.log_remote:
+        from google.cloud import firestore
+        from google.cloud import storage
+
         try:
             db, storage_client = initialize_cloud_clients(args.project_id)
 
@@ -118,11 +119,12 @@ def main():
         with Picamera2() as picam2:
             # Configure camera streams
             main = {'size': (video_w, video_h), 'format': 'XRGB8888'}
-            lores = {'size': (model_w, model_h), 'format': 'RGB888'}
-            print("lores Shape:", lores['size'])
+
+            lores_w = int(round(model_w * (video_w/video_h)))
+            lores = {'size': (lores_w, model_h), 'format': 'RGB888'}
             controls = {'FrameRate': args.fps}
 
-            config = picam2.create_still_configuration(main, lores=lores, controls=controls)
+            config = picam2.create_video_configuration(main, lores=lores, controls=controls)
             picam2.configure(config)
 
             if args.create_preview:
@@ -142,9 +144,7 @@ def main():
                     # Capture and process frame
                     (main_frame, frame), metadata = picam2.capture_arrays(["main", "lores"])
 
-                    if args.rotate_img:
-                        frame = utils.pre_process_image(frame, args.rotate_img)
-
+                    frame = utils.pre_process_image(frame, rotate=args.rotate_img, w=lores_w, h=model_h)
                     results = hailo.run(frame)
 
                     # Extract and process detections
@@ -188,7 +188,7 @@ def main():
                                 encoder.output.start()
                                 encoding = True
                         else:
-                            if encoding:
+                            if encoding and detections_run == 0:
                                 encoder.output.stop()
                                 encoding = False
 

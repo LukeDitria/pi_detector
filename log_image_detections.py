@@ -72,8 +72,6 @@ def main():
 
             lores_w = int(round(model_w * (video_w/video_h)))
             lores = {'size': (lores_w, model_h), 'format': 'RGB888'}
-                
-            print("lores Shape:", lores['size'])
             controls = {'FrameRate': args.fps}
             
             config = picam2.create_video_configuration(main, lores=lores, controls=controls)
@@ -93,7 +91,6 @@ def main():
                     (main_frame, frame), metadata = picam2.capture_arrays(["main", "lores"])
 
                     frame = utils.pre_process_image(frame, rotate=args.rotate_img, w=lores_w, h=model_h)
-                    print(frame.shape)
 
                     results = hailo.run(frame)
                     
