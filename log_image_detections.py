@@ -122,7 +122,7 @@ def main():
                         detections_run = max(detections_run, 0)
 
                     if args.save_video:
-                        if detections_run > args.buffer_secs * args.fps:
+                        if detections_run > 5:
                             if not encoding:
                                 epoch = int(time.time())
                                 file_name = os.path.join(videos_detections_path, f"{epoch}.h264")
