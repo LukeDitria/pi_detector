@@ -31,7 +31,7 @@ def parse_arguments():
                         help="Video size as width,height (default: 1920,1080)")
     parser.add_argument("--fps", type=int, default=1,
                         help="Frames per second (default: 1)")
-    parser.add_argument("--project_id", type=str, required=True,
+    parser.add_argument("--project_id", type=str,
                         help="Google Cloud project ID")
     parser.add_argument("--log_remote", action='store_true', help="Log to remote store")
     parser.add_argument("--create_preview", action='store_true', help="Display the camera output")
@@ -75,18 +75,21 @@ def main():
 
     # Initialize Google Cloud clients
     if args.log_remote:
-        from google.cloud import firestore
-        from google.cloud import storage
+        if args.project_id is not None:
+            from google.cloud import firestore
+            from google.cloud import storage
 
-        try:
-            db, storage_client = initialize_cloud_clients(args.project_id)
+            try:
+                db, storage_client = initialize_cloud_clients(args.project_id)
 
-            timestamp = time.strftime("%Y%m%d-%H%M%S")
-            doc_ref = db.collection('startup').document(timestamp)
-            doc_data = {"startup": True}
-            doc_ref.set(doc_data)
-        except Exception as e:
-            print(f"Firestore initialization failed: {e}")
+                timestamp = time.strftime("%Y%m%d-%H%M%S")
+                doc_ref = db.collection('startup').document(timestamp)
+                doc_data = {"startup": True}
+                doc_ref.set(doc_data)
+            except Exception as e:
+                print(f"Firestore initialization failed: {e}")
+        else:
+            print("You must provide a project ID to use Firestore!")
 
     # Create output directories
     os.makedirs(args.output_dir, exist_ok=True)
