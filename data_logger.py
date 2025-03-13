@@ -163,7 +163,7 @@ class HailoLogger():
                 picam2.configure(config)
 
                 if self.args.create_preview:
-                    picam2.start_preview(Preview.QTGL, x=0, y=0, width=self.video_w, height=self.video_h)
+                    picam2.start_preview(Preview.QT, x=0, y=0, width=self.video_w, height=self.video_h)
 
                 picam2.start()
 
