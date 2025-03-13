@@ -27,7 +27,7 @@ def parse_arguments():
                         help="Rotate/flip the input image: none, cw, ccw, flip", default="none")
     parser.add_argument("--confidence", type=float, default=0.5,
                         help="Confidence threshold (default: 0.5)")
-    parser.add_argument("--video_size", type=str, default="1280,640",
+    parser.add_argument("--video_size", type=str, default="1920,1080",
                         help="Video size as width,height (default: 1920,1080)")
     parser.add_argument("--fps", type=int, default=1,
                         help="Frames per second (default: 1)")
@@ -38,6 +38,7 @@ def parse_arguments():
     parser.add_argument("--log_remote", action='store_true', help="Log to remote store")
     parser.add_argument("--create_preview", action='store_true', help="Display the camera output")
     parser.add_argument("--save_video", action='store_true', help="Save video clips of detections")
+    parser.add_argument("--save_images", action='store_true', help="Save images of the detections")
 
     return parser.parse_args()
 
@@ -81,7 +82,6 @@ def main():
         if args.project_id is not None:
             from google.cloud import firestore
             from google.cloud import storage
-
             try:
                 db, storage_client = initialize_cloud_clients(args.project_id)
 
@@ -164,8 +164,9 @@ def main():
                         filename = f"{timestamp}.jpg"
 
                         # Save the frame locally
-                        lores_path = os.path.join(image_detections_path, filename)
-                        cv2.imwrite(lores_path, frame)
+                        if args.save_images:
+                            lores_path = os.path.join(image_detections_path, filename)
+                            cv2.imwrite(lores_path, frame)
 
                         # Log detections locally
                         utils.log_detection(filename, json_detections_path, detections)

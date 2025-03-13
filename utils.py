@@ -66,7 +66,7 @@ def pre_process_image(image, rotate="cw", h=640, w=640):
     if not h == w:
         split = (w - h)//2
         image = np.ascontiguousarray(image[:, split:split+h])
-        
+
     return image
 
 
