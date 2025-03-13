@@ -39,13 +39,15 @@ class BatteryMonitor:
         self.firestore_available = False
 
         # Try to initialize the battery monitor
-        # try:
-        self.bus = smbus.SMBus(1)
-        self.address = 0x36
-        # except Exception as e:
-        #     print(f"Battery monitor initialization failed: {e}")
-        #     print("Continuing without battery monitoring")
-        #     self.battery_monitor_available = False
+        try:
+            self.bus = smbus.SMBus(1)
+            self.address = 0x36
+            # Test if we can read from the device
+            self.read_voltage()
+        except Exception as e:
+            print(f"Battery monitor initialization failed: {e}")
+            print("Continuing without battery monitoring")
+            self.battery_monitor_available = False
 
         # Replace with your location coordinates and timezone
         try:
