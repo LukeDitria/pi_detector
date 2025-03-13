@@ -78,29 +78,29 @@ class HailoLogger():
             else:
                 print("You must provide a project ID to use Firestore!")
 
-            # Create output directories
-            os.makedirs(self.args.output_dir, exist_ok=True)
-            self.image_detections_path = os.path.join(self.args.output_dir, "images")
-            os.makedirs(self.image_detections_path, exist_ok=True)
+        # Create output directories
+        os.makedirs(self.args.output_dir, exist_ok=True)
+        self.image_detections_path = os.path.join(self.args.output_dir, "images")
+        os.makedirs(self.image_detections_path, exist_ok=True)
 
-            self.json_detections_path = os.path.join(self.args.output_dir, "detections")
-            os.makedirs(self.json_detections_path, exist_ok=True)
+        self.json_detections_path = os.path.join(self.args.output_dir, "detections")
+        os.makedirs(self.json_detections_path, exist_ok=True)
 
-            # Parse video size
-            if isinstance(self.args.video_size, str):
-                self.video_w, self.video_h = map(int, self.args.video_size.split(','))
-            else:
-                # Handle case where video_size might be a list/tuple in the JSON
-                self.video_w, self.video_h = self.args.video_size
+        # Parse video size
+        if isinstance(self.args.video_size, str):
+            self.video_w, self.video_h = map(int, self.args.video_size.split(','))
+        else:
+            # Handle case where video_size might be a list/tuple in the JSON
+            self.video_w, self.video_h = self.args.video_size
 
-            # Load class names and valid classes
-            self.class_names = utils.read_class_list(self.args.labels)
-            if self.args.valid_classes:
-                self.valid_classes = utils.read_class_list(self.args.valid_classes)
-                print(f"Monitoring for classes: {', '.join(sorted(self.valid_classes))}")
-            else:
-                self.valid_classes = None
-                print(f"Monitoring all classes")
+        # Load class names and valid classes
+        self.class_names = utils.read_class_list(self.args.labels)
+        if self.args.valid_classes:
+            self.valid_classes = utils.read_class_list(self.args.valid_classes)
+            print(f"Monitoring for classes: {', '.join(sorted(self.valid_classes))}")
+        else:
+            self.valid_classes = None
+            print(f"Monitoring all classes")
 
     def initialize_cloud_clients(self):
         """Initialize Google Cloud clients."""
