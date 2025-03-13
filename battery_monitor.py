@@ -8,8 +8,8 @@ import os
 import subprocess
 from astral import LocationInfo
 from astral.sun import sun
-from google.cloud import firestore
-from google.cloud import storage
+from astral.geocoder import database, lookup
+
 import pytz
 import sys
 import argparse
@@ -19,20 +19,24 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description="Raspi Battery monitor")
     parser.add_argument("--log_file_path", type=str, default="battery_logs.csv",
                         help="Directory to save detection results")
+    parser.add_argument("--device_location", type=str, default="Melbourne",
+                        help="Directory to save detection results")
     parser.add_argument("--log_rate_min", type=int, default=5,
                         help="Logging every (x) minutes (default: 5)")
-    parser.add_argument("--project_id", type=str, required=True,
+    parser.add_argument("--project_id", type=str,
                         help="Google Cloud project ID")
+    parser.add_argument("--low_battery_voltage", type=float, default=3.2,
+                        help="Battery Voltage to shutdown at")
     parser.add_argument("--log_remote", action='store_true', help="Log to remote store")
     return parser.parse_args()
 
 
 class BatteryMonitor:
-    def __init__(self, log_file_path, project_id, log_remote=False):
-        self.log_file = log_file_path
-        self.log_remote = log_remote
+    def __init__(self):
+        self.args = parse_arguments()
+
         self.battery_monitor_available = True
-        self.firestore_available = True
+        self.firestore_available = False
 
         # Try to initialize the battery monitor
         try:
@@ -46,19 +50,31 @@ class BatteryMonitor:
             self.battery_monitor_available = False
 
         # Replace with your location coordinates and timezone
-        self.location = LocationInfo('Melbourne', 'Australia', 'Australia/Melbourne',
-                                     latitude=-37.8136, longitude=144.9631)
+        try:
+            self.location = lookup(self.args.device_location, database())
+        except KeyError:
+            print("Location not found")
+
         self.timezone = pytz.timezone(self.location.timezone)
         self.ensure_log_file_exists()
 
         # Initialize Firestore with error handling
-        if self.log_remote:
+        if self.args.log_remote:
+            from google.cloud import firestore
+            from google.cloud import storage
+
             try:
-                self.db = firestore.Client(project=project_id)
-                self.storage_client = storage.Client(project=project_id)
-                # Test the connection by attempting a simple operation
-                self.db.collection('battery').document('test').get()
-                print("Firestore connection established successfully")
+                if self.args.project_id is not None:
+                    self.db = firestore.Client(project=self.args.project_id)
+                    self.storage_client = storage.Client(project=self.args.project_id)
+                    # Test the connection by attempting a simple operation
+                    self.db.collection('battery').document('test').get()
+                    print("Firestore connection established successfully")
+                    self.firestore_available = True
+                else:
+                    print("Firestore Project ID not Provided!")
+                    print("Firestore NOT LOGGING!")
+                    self.firestore_available = False
             except Exception as e:
                 print(f"Firestore initialization failed: {e}")
                 print("Continuing without remote logging")
@@ -66,7 +82,7 @@ class BatteryMonitor:
 
     def log_battery_to_firestore(self, battery_voltage, status):
         """Log detection results to Firestore."""
-        if not self.log_remote or not self.firestore_available:
+        if not self.args.log_remote or not self.firestore_available:
             return
 
         try:
@@ -85,8 +101,8 @@ class BatteryMonitor:
 
     def ensure_log_file_exists(self):
         """Create the log file with headers if it doesn't exist"""
-        if not os.path.exists(self.log_file):
-            with open(self.log_file, 'w', newline='') as f:
+        if not os.path.exists(self.args.log_file_path):
+            with open(self.args.log_file_path, 'w', newline='') as f:
                 writer = csv.writer(f)
                 writer.writerow(['Timestamp', 'Voltage', 'Shutdown_Reason'])
 
@@ -113,7 +129,7 @@ class BatteryMonitor:
 
         # Always try to log to local file first
         try:
-            with open(self.log_file, 'a', newline='') as f:
+            with open(self.args.log_file_path, 'a', newline='') as f:
                 writer = csv.writer(f)
                 if voltage is not None:
                     writer.writerow([timestamp, f"{voltage:.2f}", shutdown_reason or "on"])
@@ -125,7 +141,7 @@ class BatteryMonitor:
             print(f"Error logging to file: {e}")
 
         # Then try to log to Firestore if enabled
-        if self.log_remote and self.firestore_available:
+        if self.args.log_remote and self.firestore_available:
             try:
                 if voltage is not None:
                     self.log_battery_to_firestore(voltage, shutdown_reason or "on")
@@ -180,45 +196,42 @@ class BatteryMonitor:
             return
 
         # Shutdown if battery is critically low
-        if current_voltage < 3.20:
+        if current_voltage < self.args.low_battery_voltage:
             self.perform_shutdown("Shutdown! Low battery!")
+
+    def run_monitor(self):
+        try:
+            time.sleep(5)
+
+            print(f"Battery monitoring started. Logging to {self.args.log_file_path}")
+
+            # Print status information
+            status_messages = []
+            if not self.battery_monitor_available:
+                status_messages.append("battery monitoring disabled")
+            if self.args.log_remote and not self.firestore_available:
+                status_messages.append("remote logging disabled")
+
+            if status_messages:
+                print(f"Running with {' and '.join(status_messages)}")
+
+            while True:
+                self.log_data()
+                self.check_shutdown_condition()
+
+                # Wait for specified minutes
+                time.sleep(self.args.log_rate_min * 60)
+
+        except KeyboardInterrupt:
+            print("\nMonitoring stopped by user")
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            sys.exit(1)
 
 
 def main():
-    args = parse_arguments()
-
-    try:
-        monitor = BatteryMonitor(
-            log_file_path=args.log_file_path,
-            project_id=args.project_id,
-            log_remote=args.log_remote,
-        )
-        time.sleep(5)
-
-        print(f"Battery monitoring started. Logging to {monitor.log_file}")
-
-        # Print status information
-        status_messages = []
-        if not monitor.battery_monitor_available:
-            status_messages.append("battery monitoring disabled")
-        if args.log_remote and not monitor.firestore_available:
-            status_messages.append("remote logging disabled")
-
-        if status_messages:
-            print(f"Running with {' and '.join(status_messages)}")
-
-        while True:
-            monitor.log_data()
-            monitor.check_shutdown_condition()
-
-            # Wait for specified minutes
-            time.sleep(args.log_rate_min * 60)
-
-    except KeyboardInterrupt:
-        print("\nMonitoring stopped by user")
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        sys.exit(1)
+    monitor = BatteryMonitor()
+    monitor.run_monitor()
 
 
 if __name__ == "__main__":
