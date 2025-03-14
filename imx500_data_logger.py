@@ -5,7 +5,7 @@ from functools import lru_cache
 import cv2
 import numpy as np
 
-from picamera2 import MappedArray, Picamera2
+from picamera2 import MappedArray, Picamera2, Preview
 from picamera2.devices import IMX500
 from picamera2.devices.imx500 import (NetworkIntrinsics,
                                       postprocess_nanodet_detection)
@@ -46,7 +46,10 @@ class Imx500Logger():
         config = self.picam2.create_preview_configuration(controls={"FrameRate": self.intrinsics.inference_rate}, buffer_count=12)
 
         self.imx500.show_network_fw_progress_bar()
-        self.picam2.start(config, show_preview=True)
+        self.picam2.configure(config)
+        self.picam2.start_preview(Preview.GL)
+
+        self.picam2.start()
 
         if self.intrinsics.preserve_aspect_ratio:
             self.imx500.set_auto_aspect_ratio()
@@ -106,6 +109,7 @@ class Imx500Logger():
         with MappedArray(request, stream) as m:
             for detection in self.detections:
                 x, y, w, h = detection[1]
+                print(x, y, w, h)
                 label = f"{labels[int(detection[0])]} ({detection[2]:.2f})"
 
                 # Calculate text size and position
