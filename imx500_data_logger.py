@@ -103,10 +103,9 @@ class Imx500Logger():
             if score > threshold
         ]
 
-        print(boxes)
         yolo_detections = [(category, box, score)
                            for box, score, category in zip(boxes, scores, classes)
-                           if score > threshold
+                           # if score > threshold
                            ]
 
         if yolo_detections:
