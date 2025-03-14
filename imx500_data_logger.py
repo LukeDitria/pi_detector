@@ -47,7 +47,7 @@ class Imx500Logger():
 
         self.imx500.show_network_fw_progress_bar()
         self.picam2.configure(config)
-        self.picam2.start_preview(Preview.GL)
+        self.picam2.start_preview(Preview.QT)
 
         self.picam2.start()
 
