@@ -111,13 +111,14 @@ class Imx500Logger():
         yolo_detections = []
         self.detections = []
         for box, score, category in zip(boxes, scores, classes):
-            if self.valid_classes and category not in self.valid_classes:
+            class_label = labels[int(category)]
+
+            if self.valid_classes and class_label not in self.valid_classes:
                 continue
 
             if score > threshold:
                 y, x, h, w = box
                 bbox = (float(x), float(y), float(w), float(h))
-                class_label = labels[int(category)]
                 yolo_detections.append((class_label, bbox, float(score)))
                 self.detections.append((class_label, self.imx500.convert_inference_coords(box, metadata, self.picam2), float(score)))
 
