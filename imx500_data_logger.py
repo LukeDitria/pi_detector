@@ -50,7 +50,9 @@ class Imx500Logger():
 
         self.imx500.show_network_fw_progress_bar()
         self.picam2.configure(config)
-        self.picam2.start_preview(Preview.QT)
+
+        if self.args.create_preview:
+            self.picam2.start_preview(Preview.QT)
 
         self.picam2.start()
 
@@ -200,6 +202,7 @@ class Imx500Logger():
         parser.add_argument("--print-intrinsics", action="store_true",
                             help="Print JSON network_intrinsics then exit")
         parser.add_argument("--save_images", action='store_true', help="Save images of the detections")
+        parser.add_argument("--create_preview", action='store_true', help="Create a camera preview")
 
         return parser.parse_args()
 
