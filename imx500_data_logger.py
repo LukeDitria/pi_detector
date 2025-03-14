@@ -4,6 +4,9 @@ from functools import lru_cache
 
 import cv2
 import numpy as np
+import time
+import utils
+import os
 
 from picamera2 import MappedArray, Picamera2, Preview
 from picamera2.devices import IMX500
@@ -57,7 +60,15 @@ class Imx500Logger():
         self.detections = None
         self.picam2.pre_callback = self.draw_detections
 
-    def parse_detections(self, metadata: dict):
+        # Create output directories
+        os.makedirs(self.args.output_dir, exist_ok=True)
+        self.image_detections_path = os.path.join(self.args.output_dir, "images")
+        os.makedirs(self.image_detections_path, exist_ok=True)
+
+        self.json_detections_path = os.path.join(self.args.output_dir, "detections")
+        os.makedirs(self.json_detections_path, exist_ok=True)
+
+    def parse_detections(self, main, metadata):
         """Parse the output tensor into a number of detected objects, scaled to the ISP output."""
         bbox_normalization = self.intrinsics.bbox_normalization
         bbox_order = self.intrinsics.bbox_order
@@ -92,6 +103,23 @@ class Imx500Logger():
             if score > threshold
         ]
 
+        yolo_detections = [(category, box, score)
+                           for box, score, category in zip(boxes, scores, classes)
+                           if score > threshold
+                           ]
+
+        # Generate filename with timestamp
+        timestamp = time.strftime("%Y%m%d-%H%M%S")
+        filename = f"{timestamp}.jpg"
+
+        # Save the frame locally
+        if self.args.save_images:
+            lores_path = os.path.join(self.image_detections_path, filename)
+            cv2.imwrite(lores_path, main)
+
+        # Log detections locally
+        utils.log_detection(filename, self.json_detections_path, yolo_detections)
+
     @lru_cache
     def get_labels(self):
         labels = self.intrinsics.labels
@@ -109,7 +137,6 @@ class Imx500Logger():
         with MappedArray(request, stream) as m:
             for detection in self.detections:
                 x, y, w, h = detection[3]
-                print(x, y, w, h)
                 label = f"{labels[int(detection[0])]} ({detection[2]:.2f})"
 
                 # Calculate text size and position
@@ -145,7 +172,8 @@ class Imx500Logger():
 
     def run_detector(self):
         while True:
-            self.parse_detections(self.picam2.capture_metadata())
+            (main, lores), metadata = self.picam2.capture_arrays(["main", "lores"])
+            self.parse_detections(main, metadata)
 
     def get_args(self):
         parser = argparse.ArgumentParser()
@@ -165,8 +193,12 @@ class Imx500Logger():
                             help="preserve the pixel aspect ratio of the input tensor")
         parser.add_argument("--labels", type=str,
                             help="Path to the labels file")
+        parser.add_argument("--output_dir", type=str, default="output",
+                            help="Directory to save detection results")
         parser.add_argument("--print-intrinsics", action="store_true",
                             help="Print JSON network_intrinsics then exit")
+        parser.add_argument("--save_images", action='store_true', help="Save images of the detections")
+
         return parser.parse_args()
 
 
