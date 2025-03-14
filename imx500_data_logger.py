@@ -100,16 +100,14 @@ class Imx500Logger():
 
         labels = self.get_labels()
         yolo_detections = []
+        self.detections = []
         for box, score, category in zip(boxes, scores, classes):
             if score > threshold:
                 y, x, h, w = box
                 bbox = (float(x), float(y), float(w), float(h))
-                yolo_detections.append((labels[int(category)], bbox, float(score)))
-
-        self.detections = [(category, box, score, self.imx500.convert_inference_coords(box, metadata, self.picam2))
-            for box, score, category in zip(boxes, scores, classes)
-            if score > threshold
-        ]
+                class_label = labels[int(category)]
+                yolo_detections.append((class_label, bbox, float(score)))
+                self.detections.append((class_label, self.imx500.convert_inference_coords(box, metadata, self.picam2), float(score)))
 
         if yolo_detections:
             # Generate filename with timestamp
@@ -137,11 +135,10 @@ class Imx500Logger():
         if self.detections is None:
             return
 
-        labels = self.get_labels()
         with MappedArray(request, stream) as m:
             for detection in self.detections:
-                x, y, w, h = detection[3]
-                label = f"{labels[int(detection[0])]} ({detection[2]:.2f})"
+                x, y, w, h = detection[1]
+                label = f"{detection[0]} ({detection[2]:.2f})"
 
                 # Calculate text size and position
                 (text_width, text_height), baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
