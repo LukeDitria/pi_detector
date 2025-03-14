@@ -35,12 +35,6 @@ class Imx500Logger():
             elif hasattr(self.intrinsics, key) and value is not None:
                 setattr(self.intrinsics, key, value)
 
-        # Defaults
-        if self.intrinsics.labels is None:
-            with open("coco_labels.txt", "r") as f:
-                self.intrinsics.labels = f.read().splitlines()
-        self.intrinsics.update_with_defaults()
-
         if self.args.print_intrinsics:
             print(self.intrinsics)
             exit()
@@ -207,7 +201,7 @@ class Imx500Logger():
         parser.add_argument("-r", "--preserve-aspect-ratio", action=argparse.BooleanOptionalAction,
                             help="preserve the pixel aspect ratio of the input tensor")
         parser.add_argument("--labels", type=str,
-                            help="Path to the labels file")
+                            help="Path to the labels file", default="coco_labels.txt")
         parser.add_argument("--valid_classes", type=str,
                             help="Path to text file containing list of valid class names to detect")
         parser.add_argument("--output_dir", type=str, default="output",
