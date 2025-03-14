@@ -70,6 +70,13 @@ class Imx500Logger():
         self.json_detections_path = os.path.join(self.args.output_dir, "detections")
         os.makedirs(self.json_detections_path, exist_ok=True)
 
+        if self.args.valid_classes:
+            self.valid_classes = utils.read_class_list(self.args.valid_classes)
+            print(f"Monitoring for classes: {', '.join(sorted(self.valid_classes))}")
+        else:
+            self.valid_classes = None
+            print(f"Monitoring all classes")
+
     def parse_detections(self, main, metadata):
         """Parse the output tensor into a number of detected objects, scaled to the ISP output."""
         bbox_normalization = self.intrinsics.bbox_normalization
@@ -104,6 +111,9 @@ class Imx500Logger():
         yolo_detections = []
         self.detections = []
         for box, score, category in zip(boxes, scores, classes):
+            if self.valid_classes and category not in self.valid_classes:
+                continue
+
             if score > threshold:
                 y, x, h, w = box
                 bbox = (float(x), float(y), float(w), float(h))
@@ -197,6 +207,8 @@ class Imx500Logger():
                             help="preserve the pixel aspect ratio of the input tensor")
         parser.add_argument("--labels", type=str,
                             help="Path to the labels file")
+        parser.add_argument("--valid_classes", type=str,
+                            help="Path to text file containing list of valid class names to detect")
         parser.add_argument("--output_dir", type=str, default="output",
                             help="Directory to save detection results")
         parser.add_argument("--print-intrinsics", action="store_true",
