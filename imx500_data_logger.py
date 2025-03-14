@@ -43,7 +43,7 @@ class Imx500Logger():
             exit()
 
         self.picam2 = Picamera2(self.imx500.camera_num)
-        config = self.picam2.create_preview_configuration(controls={"FrameRate": intrinsics.inference_rate}, buffer_count=12)
+        config = self.picam2.create_preview_configuration(controls={"FrameRate": self.intrinsics.inference_rate}, buffer_count=12)
 
         self.imx500.show_network_fw_progress_bar()
         self.picam2.start(config, show_preview=True)
@@ -51,7 +51,7 @@ class Imx500Logger():
         if self.intrinsics.preserve_aspect_ratio:
             self.imx500.set_auto_aspect_ratio()
 
-        self.last_results = None
+        self.detections = None
         self.picam2.pre_callback = self.draw_detections
 
     def parse_detections(self, metadata: dict):
@@ -65,13 +65,14 @@ class Imx500Logger():
         np_outputs = self.imx500.get_outputs(metadata, add_batch=True)
         input_w, input_h = self.imx500.get_input_size()
         if np_outputs is None:
+            self.detections = None
             return None
 
         if self.intrinsics.postprocess == "nanodet":
             boxes, scores, classes = \
                 postprocess_nanodet_detection(outputs=np_outputs[0], conf=threshold, iou_thres=iou,
                                               max_out_dets=max_detections)[0]
-            from self.picamera2.devices.imx500.postprocess import scale_boxes
+            from picamera2.devices.imx500.postprocess import scale_boxes
             boxes = scale_boxes(boxes, 1, 1, input_h, input_w, False, False)
         else:
             boxes, scores, classes = np_outputs[0][0], np_outputs[1][0], np_outputs[2][0]
@@ -83,11 +84,10 @@ class Imx500Logger():
             boxes = np.array_split(boxes, 4, axis=1)
             boxes = zip(*boxes)
 
-        detections = [(category, box, score)
+        self.detections = [(category, box, score)
             for box, score, category in zip(boxes, scores, classes)
             if score > threshold
         ]
-        return detections
 
     @lru_cache
     def get_labels(self):
@@ -99,14 +99,14 @@ class Imx500Logger():
 
     def draw_detections(self, request, stream="main"):
         """Draw the detections for this request onto the ISP output."""
-        detections = last_results
-        if detections is None:
+        if self.detections is None:
             return
+
         labels = self.get_labels()
         with MappedArray(request, stream) as m:
-            for detection in detections:
-                x, y, w, h = detection.box
-                label = f"{labels[int(detection.category)]} ({detection.conf:.2f})"
+            for detection in self.detections:
+                x, y, w, h = detection[1]
+                label = f"{labels[int(detection[0])]} ({detection[2]:.2f})"
 
                 # Calculate text size and position
                 (text_width, text_height), baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
@@ -141,7 +141,7 @@ class Imx500Logger():
 
     def run_detector(self):
         while True:
-            last_results = self.parse_detections(self.picam2.capture_metadata())
+            self.parse_detections(self.picam2.capture_metadata())
 
     def get_args(self):
         parser = argparse.ArgumentParser()
