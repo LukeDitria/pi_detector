@@ -87,7 +87,7 @@ class Imx500Logger():
             boxes = np.array_split(boxes, 4, axis=1)
             boxes = zip(*boxes)
 
-        self.detections = [(category, box, score, self.imx500.convert_inference_coords(boxes, metadata, self.picam2))
+        self.detections = [(category, box, score, self.imx500.convert_inference_coords(box, metadata, self.picam2))
             for box, score, category in zip(boxes, scores, classes)
             if score > threshold
         ]
