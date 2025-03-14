@@ -1,11 +1,6 @@
 import cv2
 import os
-import time
 import numpy as np
-from picamera2 import Picamera2
-from picamera2.devices import Hailo
-from datetime import datetime
-
 
 def read_class_list(filepath):
     """Read list of class names from a text file."""
