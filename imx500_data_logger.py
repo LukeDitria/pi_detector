@@ -117,7 +117,8 @@ class Imx500Logger():
             # Save the frame locally
             if self.args.save_images:
                 lores_path = os.path.join(self.image_detections_path, filename)
-                cv2.imwrite(lores_path, main[:, :, :3])
+                image_out = cv2.cvtColor(main, cv2.COLOR_RGBA2BGR)
+                cv2.imwrite(lores_path, image_out)
 
             # Log detections locally
             utils.log_detection(filename, self.json_detections_path, yolo_detections)
