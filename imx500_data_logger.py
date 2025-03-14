@@ -35,6 +35,7 @@ class Imx500Logger():
             elif hasattr(self.intrinsics, key) and value is not None:
                 setattr(self.intrinsics, key, value)
 
+        self.intrinsics.update_with_defaults()
         if self.args.print_intrinsics:
             print(self.intrinsics)
             exit()
