@@ -103,25 +103,27 @@ class Imx500Logger():
             if score > threshold
         ]
 
+        print(boxes)
         yolo_detections = [(category, box, score)
                            for box, score, category in zip(boxes, scores, classes)
                            if score > threshold
                            ]
 
-        # Generate filename with timestamp
-        timestamp = time.strftime("%Y%m%d-%H%M%S")
-        filename = f"{timestamp}.jpg"
+        if yolo_detections:
+            # Generate filename with timestamp
+            timestamp = time.strftime("%Y%m%d-%H%M%S")
+            filename = f"{timestamp}.jpg"
 
-        # Save the frame locally
-        if self.args.save_images:
-            lores_path = os.path.join(self.image_detections_path, filename)
-            cv2.imwrite(lores_path, main)
+            # Save the frame locally
+            if self.args.save_images:
+                lores_path = os.path.join(self.image_detections_path, filename)
+                cv2.imwrite(lores_path, main)
 
-        print(self.detections)
-        print(yolo_detections)
+            print(self.detections)
+            print(yolo_detections)
 
-        # Log detections locally
-        utils.log_detection(filename, self.json_detections_path, yolo_detections)
+            # Log detections locally
+            utils.log_detection(filename, self.json_detections_path, yolo_detections)
 
     @lru_cache
     def get_labels(self):
