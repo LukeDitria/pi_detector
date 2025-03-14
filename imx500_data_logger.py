@@ -87,7 +87,7 @@ class Imx500Logger():
             boxes = np.array_split(boxes, 4, axis=1)
             boxes = zip(*boxes)
 
-        self.detections = [(category, box, score)
+        self.detections = [(category, box, score, self.imx500.convert_inference_coords(boxes, metadata, self.picam2))
             for box, score, category in zip(boxes, scores, classes)
             if score > threshold
         ]
@@ -108,7 +108,7 @@ class Imx500Logger():
         labels = self.get_labels()
         with MappedArray(request, stream) as m:
             for detection in self.detections:
-                x, y, w, h = detection[1]
+                x, y, w, h = detection[3]
                 print(x, y, w, h)
                 label = f"{labels[int(detection[0])]} ({detection[2]:.2f})"
 
