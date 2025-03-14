@@ -98,16 +98,15 @@ class Imx500Logger():
             boxes = np.array_split(boxes, 4, axis=1)
             boxes = zip(*boxes)
 
-        self.detections = None
-        # self.detections = [(category, box, score, self.imx500.convert_inference_coords(box, metadata, self.picam2))
-        #     for box, score, category in zip(boxes, scores, classes)
-        #     if score > threshold
-        # ]
-
         yolo_detections = [(category, box, score)
                            for box, score, category in zip(boxes, scores, classes)
-                           # if score > threshold
+                           if score > threshold
                            ]
+
+        self.detections = [(category, box, score, self.imx500.convert_inference_coords(box, metadata, self.picam2))
+            for box, score, category in zip(boxes, scores, classes)
+            if score > threshold
+        ]
 
         if yolo_detections:
             # Generate filename with timestamp
