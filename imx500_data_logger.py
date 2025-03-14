@@ -172,7 +172,7 @@ class Imx500Logger():
 
     def run_detector(self):
         while True:
-            (main, lores), metadata = self.picam2.capture_arrays(["main", "lores"])
+            main, metadata = self.picam2.capture_arrays(["main", "lores"])
             self.parse_detections(main, metadata)
 
     def get_args(self):
