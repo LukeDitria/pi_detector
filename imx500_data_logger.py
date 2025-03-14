@@ -116,7 +116,8 @@ class Imx500Logger():
         if self.args.save_images:
             lores_path = os.path.join(self.image_detections_path, filename)
             cv2.imwrite(lores_path, main)
-            
+
+        print(self.detections)
         print(yolo_detections)
 
         # Log detections locally
