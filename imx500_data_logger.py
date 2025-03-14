@@ -98,12 +98,13 @@ class Imx500Logger():
             boxes = np.array_split(boxes, 4, axis=1)
             boxes = zip(*boxes)
 
+        labels = self.get_labels()
         yolo_detections = []
         for box, score, category in zip(boxes, scores, classes):
             if score > threshold:
                 y, x, h, w = box
                 bbox = (float(x), float(y), float(w), float(h))
-                yolo_detections.append((category, bbox, float(score)))
+                yolo_detections.append((labels[int(category)], bbox, float(score)))
 
         self.detections = [(category, box, score, self.imx500.convert_inference_coords(box, metadata, self.picam2))
             for box, score, category in zip(boxes, scores, classes)
