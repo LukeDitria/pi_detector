@@ -181,6 +181,29 @@ class BatteryMonitor:
             print(f"Failed to shutdown: {e}")
             sys.exit(1)
 
+    def set_sunrise_wakeup(self):
+        """Set the wakeup time to be at sunrise the next morning"""
+        now = datetime.now(self.timezone)
+        tomorrow = now + timedelta(days=1)
+        s = sun(self.location.observer, date=tomorrow)
+        sunrise = s['sunrise']
+
+        # Convert to Unix timestamp for wake-alarm
+        sunrise_timestamp = int(sunrise.timestamp())
+
+        try:
+            # Clear any existing alarm
+            subprocess.run(["sudo", "sh", "-c", "echo 0 > /sys/class/rtc/rtc0/wakealarm"], check=True)
+            # Set new alarm for sunrise
+            subprocess.run(["sudo", "sh", "-c", f"echo {sunrise_timestamp} > /sys/class/rtc/rtc0/wakealarm"],
+                           check=True)
+
+            print(f"Wake alarm set for sunrise at {sunrise.strftime('%Y-%m-%d %H:%M:%S')}")
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f"Error setting wakealarm: {e}")
+            return False
+
     def check_shutdown_condition(self):
         """Check if it's after sunset or if battery voltage is critically low"""
         # Shutdown if after sunset
