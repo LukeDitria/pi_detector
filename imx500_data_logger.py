@@ -144,8 +144,9 @@ class Imx500Logger():
         if self.detections is None:
             return
 
+        curr_detections = self.detections
         with MappedArray(request, stream) as m:
-            for detection in self.detections:
+            for detection in curr_detections:
                 x, y, w, h = detection[1]
                 label = f"{detection[0]} ({detection[2]:.2f})"
 
