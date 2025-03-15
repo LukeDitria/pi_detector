@@ -48,6 +48,7 @@ class Imx500Logger():
 
         if self.args.create_preview:
             self.picam2.start_preview(Preview.QT)
+            self.picam2.pre_callback = self.draw_detections
 
         self.picam2.start()
 
@@ -55,7 +56,6 @@ class Imx500Logger():
             self.imx500.set_auto_aspect_ratio()
 
         self.detections = None
-        self.picam2.pre_callback = self.draw_detections
 
         # Create output directories
         os.makedirs(self.args.output_dir, exist_ok=True)
