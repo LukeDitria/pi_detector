@@ -208,6 +208,7 @@ class BatteryMonitor:
         """Check if it's after sunset or if battery voltage is critically low"""
         # Shutdown if after sunset
         if self.is_after_sunset():
+            self.set_sunrise_wakeup()
             self.perform_shutdown("Shutdown! After sunset!")
 
         # Only check battery voltage if monitor is available
