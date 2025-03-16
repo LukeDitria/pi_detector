@@ -64,4 +64,30 @@ def pre_process_image(image, rotate="cw", h=640, w=640):
 
     return image
 
+def find_first_usb_drive():
+    # Relies on raspi OS to auto mount USB storage to /media/username etc
+    media_path = "/media"
 
+    # Check if /media exists
+    if not os.path.exists(media_path):
+        return None
+
+    # Get all user directories under /media (usually just one)
+    media_items = os.listdir(media_path)
+
+    for user_dir in media_items:
+        user_path = os.path.join(media_path, user_dir)
+
+        # If this is a directory
+        if os.path.isdir(user_path):
+            # Check for any subdirectories (mounted drives)
+            try:
+                usb_drives = os.listdir(user_path)
+                if usb_drives:
+                    # Return the first drive found
+                    return os.path.join(user_path, usb_drives[0])
+            except:
+                pass
+
+    # No USB drives found
+    return None

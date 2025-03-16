@@ -42,6 +42,8 @@ def parse_arguments():
     parser.add_argument("--create_preview", action='store_true', help="Display the camera output")
     parser.add_argument("--save_video", action='store_true', help="Save video clips of detections")
     parser.add_argument("--save_images", action='store_true', help="Save images of the detections")
+    parser.add_argument("--auto_select_media", action='store_true',
+                        help="Auto selects a device mounted to /media to use as the storage device for outputs")
 
     return parser.parse_args()
 
@@ -78,12 +80,17 @@ class HailoLogger():
             else:
                 print("You must provide a project ID to use Firestore!")
 
+        if self.args.auto_select_media:
+            self.data_output = os.path.join(utils.find_first_usb_drive(), "output")
+        else:
+            self.data_output = self.args.output_dir
+
         # Create output directories
-        os.makedirs(self.args.output_dir, exist_ok=True)
-        self.image_detections_path = os.path.join(self.args.output_dir, "images")
+        os.makedirs(self.data_output, exist_ok=True)
+        self.image_detections_path = os.path.join(self.data_output, "images")
         os.makedirs(self.image_detections_path, exist_ok=True)
 
-        self.json_detections_path = os.path.join(self.args.output_dir, "detections")
+        self.json_detections_path = os.path.join(self.data_output, "detections")
         os.makedirs(self.json_detections_path, exist_ok=True)
 
         # Parse video size
@@ -171,7 +178,7 @@ class HailoLogger():
                     self.encoder = H264Encoder(1000000, repeat=True)
                     self.encoder.output = CircularOutput(buffersize=self.args.buffer_secs * self.args.fps)
                     picam2.start_encoder(self.encoder)
-                    self.videos_detections_path = os.path.join(self.args.output_dir, "videos")
+                    self.videos_detections_path = os.path.join(self.data_output, "videos")
                     os.makedirs(self.videos_detections_path, exist_ok=True)
 
                 try:
