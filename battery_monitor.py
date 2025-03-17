@@ -201,7 +201,35 @@ class BatteryMonitor:
             print(f"Wake alarm set for sunrise at {sunrise.strftime('%Y-%m-%d %H:%M:%S')}")
             return True
         except subprocess.CalledProcessError as e:
-            print(f"Error setting wakealarm: {e}")
+            print(f"Error setting wake alarm: {e}")
+            return False
+
+    def set_low_power_wakeup(self):
+        """Set the wakeup time after a low battery shutdown"""
+        now = datetime.now(self.timezone)
+        s_today = sun(self.location.observer, date=now)
+        hour_later = now + timedelta(hours=1)
+
+        # Set shutdown time to next day at sunrise if hour_later alarm would be after sunset today
+        if hour_later > s_today['sunset']:
+            tomorrow = now + timedelta(days=1)
+            s_tomorrow = sun(self.location.observer, date=tomorrow)
+            sunrise = s_tomorrow['sunrise']
+            shutdown_time = sunrise.timestamp()
+        else:
+            shutdown_time = hour_later.timestamp()
+
+        try:
+            # Clear any existing alarm
+            subprocess.run(["sudo", "sh", "-c", "echo 0 > /sys/class/rtc/rtc0/wakealarm"], check=True)
+            # Set new alarm for sunrise
+            subprocess.run(["sudo", "sh", "-c", f"echo {int(shutdown_time.timestamp())} > /sys/class/rtc/rtc0/wakealarm"],
+                           check=True)
+
+            print(f"Low battery wake alarm set for {shutdown_time.strftime('%Y-%m-%d %H:%M:%S')}")
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f"Error setting wake alarm: {e}")
             return False
 
     def check_shutdown_condition(self):
@@ -221,6 +249,7 @@ class BatteryMonitor:
 
         # Shutdown if battery is critically low
         if current_voltage < self.args.low_battery_voltage:
+            self.set_low_power_wakeup()
             self.perform_shutdown("Shutdown! Low battery!")
 
     def run_monitor(self):
