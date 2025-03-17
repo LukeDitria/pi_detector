@@ -213,6 +213,9 @@ class HailoLogger():
                             # Save the frame locally
                             if self.args.save_images:
                                 lores_path = os.path.join(self.image_detections_path, filename)
+                                if self.args.use_bgr:
+                                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
                                 cv2.imwrite(lores_path, frame)
 
                             # Log detections locally
