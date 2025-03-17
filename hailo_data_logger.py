@@ -44,7 +44,8 @@ def parse_arguments():
     parser.add_argument("--save_images", action='store_true', help="Save images of the detections")
     parser.add_argument("--auto_select_media", action='store_true',
                         help="Auto selects a device mounted to /media to use as the storage device for outputs")
-
+    parser.add_argument("--use_bgr", action='store_true',
+                        help="Use BGR image not RGB")
     return parser.parse_args()
 
 
@@ -163,7 +164,13 @@ class HailoLogger():
 
                 # Keep the aspect ratio of the main image in the lo-res image
                 self.lores_w = int(round(self.model_w * (self.video_w / self.video_h)))
-                lores = {'size': (self.lores_w, self.model_h), 'format': 'RGB888'}
+
+                if self.args.use_bgr:
+                    lores_format = 'BGR888'
+                else:
+                    lores_format = 'RGB888'
+
+                lores = {'size': (self.lores_w, self.model_h), 'format': lores_format}
                 controls = {'FrameRate': self.args.fps}
 
                 config = picam2.create_video_configuration(main_res, lores=lores, controls=controls)
