@@ -207,7 +207,7 @@ class HailoLogger():
                             no_detections_run = 0
 
                             # Generate timestamp with only the first 3 digits of the microseconds (milliseconds)
-                            timestamp = time.strftime("%Y%m%d-%H%M%S-%f")[:-3]
+                            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-3]
                             filename = f"{timestamp}.jpg"
 
                             # Save the frame locally

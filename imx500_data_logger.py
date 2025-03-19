@@ -7,6 +7,7 @@ import numpy as np
 import time
 import utils
 import os
+from datetime import datetime
 
 from picamera2 import MappedArray, Picamera2, Preview
 from picamera2.devices import IMX500
@@ -119,7 +120,7 @@ class Imx500Logger():
 
         if yolo_detections:
             # Generate timestamp with only the first 3 digits of the microseconds (milliseconds)
-            timestamp = time.strftime("%Y%m%d-%H%M%S-%f")[:-3]
+            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-3]
             filename = f"{timestamp}.jpg"
 
             # Save the frame locally
