@@ -118,8 +118,8 @@ class Imx500Logger():
                 self.detections.append((class_label, self.imx500.convert_inference_coords(box, metadata, self.picam2), float(score)))
 
         if yolo_detections:
-            # Generate filename with timestamp
-            timestamp = time.strftime("%Y%m%d-%H%M%S")
+            # Generate timestamp with only the first 3 digits of the microseconds (milliseconds)
+            timestamp = time.strftime("%Y%m%d-%H%M%S-%f")[:-3]
             filename = f"{timestamp}.jpg"
 
             # Save the frame locally
