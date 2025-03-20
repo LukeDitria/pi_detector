@@ -53,7 +53,6 @@ class BatteryMonitor:
         if self.args.operation_time == "day":
             s = sun(self.location.observer, date=now)
             self.shutdown_time = s["sunset"]
-
             next_day = now + timedelta(days=1)
             next_s = sun(self.location.observer, date=next_day)
             self.startup_time = next_s["sunrise"]
@@ -72,6 +71,9 @@ class BatteryMonitor:
 
         elif not self.args.operation_time == "all":
             ValueError("operation_time should be day/night/all")
+
+        print(f"Shutdown Time {self.shutdown_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"Startup Time {self.startup_time.strftime('%Y-%m-%d %H:%M:%S')}")
 
         # Try to initialize the battery monitor
         try:
