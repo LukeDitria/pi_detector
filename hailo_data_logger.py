@@ -4,6 +4,8 @@ import time
 import cv2
 import json
 from datetime import datetime
+import logging
+import sys
 
 from picamera2 import Picamera2, Preview
 from picamera2.devices import Hailo
@@ -55,6 +57,16 @@ class HailoLogger():
         self.args = parse_arguments()
         self.model_h, self.model_w = 640, 640
 
+        # Set up logging to stdout (systemd will handle redirection)
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s - %(levelname)s - %(message)s",
+            handlers=[
+                logging.StreamHandler(sys.stdout),  # Logs go to stdout (captured by systemd)
+                logging.StreamHandler(sys.stderr)  # Warnings and errors go to stderr
+            ]
+        )
+
         # Load config file if provided and override CLI args
         if self.args.config_file:
             try:
@@ -66,10 +78,10 @@ class HailoLogger():
                     if hasattr(self.args, key):
                         setattr(self.args, key, value)
 
-                print(f"Loaded configuration from {self.args.config_file}")
+                logging.info(f"Loaded configuration from {self.args.config_file}")
             except Exception as e:
-                print(f"Error loading config file: {e}")
-                print("Using command line arguments instead")
+                logging.info(f"Error loading config file: {e}")
+                logging.info("Using command line arguments instead")
 
         # Initialize Google Cloud clients
         if self.args.log_remote:
@@ -77,9 +89,9 @@ class HailoLogger():
                 try:
                     self.initialize_cloud_clients()
                 except Exception as e:
-                    print(f"Firestore initialization failed: {e}")
+                    logging.info(f"Firestore initialization failed: {e}")
             else:
-                print("You must provide a project ID to use Firestore!")
+                logging.info("You must provide a project ID to use Firestore!")
 
         if self.args.auto_select_media:
             self.data_output = os.path.join(utils.find_first_usb_drive(), "output")
@@ -105,10 +117,10 @@ class HailoLogger():
         self.class_names = utils.read_class_list(self.args.labels)
         if self.args.valid_classes:
             self.valid_classes = utils.read_class_list(self.args.valid_classes)
-            print(f"Monitoring for classes: {', '.join(sorted(self.valid_classes))}")
+            logging.info(f"Monitoring for classes: {', '.join(sorted(self.valid_classes))}")
         else:
             self.valid_classes = None
-            print(f"Monitoring all classes")
+            logging.info(f"Monitoring all classes")
 
     def initialize_cloud_clients(self):
         """Initialize Google Cloud clients."""
@@ -151,7 +163,7 @@ class HailoLogger():
         # Initialize Hailo and camera
         with Hailo(self.args.model) as hailo:
             self.model_h, self.model_w, *_ = hailo.get_input_shape()
-            print("Input Shape:", self.model_h, self.model_w)
+            logging.info("Input Shape:", self.model_h, self.model_w)
             self.hailo_aspect = self.model_w / self.model_h
             detections_run = 0
             no_detections_run = 0
@@ -226,11 +238,11 @@ class HailoLogger():
                                 try:
                                     self.log_detection_to_firestore(filename, detections)
                                 except Exception as e:
-                                    print(f"Firestore logging failed: {e}")
+                                    logging.info(f"Firestore logging failed: {e}")
 
-                            print(f"Detected {len(detections)} objects in {filename}")
+                            logging.info(f"Detected {len(detections)} objects in {filename}")
                             for class_name, _, score in detections:
-                                print(f"- {class_name} with confidence {score:.2f}")
+                                logging.info(f"- {class_name} with confidence {score:.2f}")
                         else:
                             no_detections_run += 1
                             detections_run = 0
@@ -248,7 +260,7 @@ class HailoLogger():
                                     encoding = False
 
                 except KeyboardInterrupt:
-                    print("\nStopping capture...")
+                    logging.info("\nStopping capture...")
 
                 finally:
                     picam2.stop()
