@@ -25,6 +25,8 @@ def parse_arguments():
                         help="Logging every (x) minutes (default: 5)")
     parser.add_argument("--project_id", type=str,
                         help="Google Cloud project ID")
+    parser.add_argument("--operation_time", type=str,
+                        help="When the device will operate: day, night, all", default='day')
     parser.add_argument("--low_battery_voltage", type=float, default=3.2,
                         help="Battery Voltage to shutdown at")
     parser.add_argument("--log_remote", action='store_true', help="Log to remote store")
@@ -38,6 +40,39 @@ class BatteryMonitor:
         self.battery_monitor_available = True
         self.firestore_available = False
 
+        # Replace with your location coordinates and timezone
+        try:
+            self.location = lookup(self.args.device_location, database())
+        except KeyError:
+            print("Location not found")
+
+        self.timezone = pytz.timezone(self.location.timezone)
+        self.ensure_log_file_exists()
+
+        now = datetime.now(self.timezone)
+        if self.args.operation_time == "day":
+            s = sun(self.location.observer, date=now)
+            self.shutdown_time = s["sunset"]
+
+            next_day = now + timedelta(days=1)
+            next_s = sun(self.location.observer, date=next_day)
+            self.startup_time = next_s["sunrise"]
+
+        elif self.args.operation_time == "night":
+            # If the device has woken up after midnight
+            if now.hour < 12:
+                days_delta = 0
+            else:
+                days_delta = 1
+
+            next_day = datetime.now(self.timezone) + timedelta(days=days_delta)
+            next_s = sun(self.location.observer, date=next_day)
+            self.shutdown_time = next_s["sunrise"]
+            self.startup_time = next_s["sunset"]
+
+        elif not self.args.operation_time == "all":
+            ValueError("operation_time should be day/night/all")
+
         # Try to initialize the battery monitor
         try:
             self.bus = smbus.SMBus(1)
@@ -48,15 +83,6 @@ class BatteryMonitor:
             print(f"Battery monitor initialization failed: {e}")
             print("Continuing without battery monitoring")
             self.battery_monitor_available = False
-
-        # Replace with your location coordinates and timezone
-        try:
-            self.location = lookup(self.args.device_location, database())
-        except KeyError:
-            print("Location not found")
-
-        self.timezone = pytz.timezone(self.location.timezone)
-        self.ensure_log_file_exists()
 
         # Initialize Firestore with error handling
         if self.args.log_remote:
@@ -150,16 +176,6 @@ class BatteryMonitor:
             except Exception as e:
                 print(f"Error during remote logging: {e}")
 
-    def is_after_sunset(self):
-        """Check if current time is after sunset"""
-        try:
-            now = datetime.now(self.timezone)
-            s = sun(self.location.observer, date=now)
-            return now > s['sunset']
-        except Exception as e:
-            print(f"Error checking sunset time: {e}")
-            return False
-
     def perform_shutdown(self, reason):
         """Perform system shutdown with proper logging and error handling"""
         print(f"Initiating shutdown due to: {reason}")
@@ -181,24 +197,24 @@ class BatteryMonitor:
             print(f"Failed to shutdown: {e}")
             sys.exit(1)
 
-    def set_sunrise_wakeup(self):
-        """Set the wakeup time to be at sunrise the next morning"""
-        now = datetime.now(self.timezone)
-        tomorrow = now + timedelta(days=1)
-        s = sun(self.location.observer, date=tomorrow)
-        sunrise = s['sunrise']
+    def check_shutdown_time(self):
+        """Check if current time is after the shutdown time"""
+        try:
+            now = datetime.now(self.timezone)
+            return now > self.shutdown_time
+        except Exception as e:
+            print(f"Error checking sunset time: {e}")
+            return False
 
-        # Convert to Unix timestamp for wake-alarm
-        sunrise_timestamp = int(sunrise.timestamp())
-
+    def set_alarm(self, alarm_time):
         try:
             # Clear any existing alarm
             subprocess.run(["sudo", "sh", "-c", "echo 0 > /sys/class/rtc/rtc0/wakealarm"], check=True)
             # Set new alarm for sunrise
-            subprocess.run(["sudo", "sh", "-c", f"echo {sunrise_timestamp} > /sys/class/rtc/rtc0/wakealarm"],
+            subprocess.run(["sudo", "sh", "-c", f"echo {int(alarm_time.timestamp())} > /sys/class/rtc/rtc0/wakealarm"],
                            check=True)
 
-            print(f"Wake alarm set for sunrise at {sunrise.strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"Wake alarm set for {alarm_time.strftime('%Y-%m-%d %H:%M:%S')}")
             return True
         except subprocess.CalledProcessError as e:
             print(f"Error setting wake alarm: {e}")
@@ -207,37 +223,22 @@ class BatteryMonitor:
     def set_low_power_wakeup(self):
         """Set the wakeup time after a low battery shutdown"""
         now = datetime.now(self.timezone)
-        s_today = sun(self.location.observer, date=now)
         hour_later = now + timedelta(hours=1)
 
-        # Set shutdown time to next day at sunrise if hour_later alarm would be after sunset today
-        if hour_later > s_today['sunset']:
-            tomorrow = now + timedelta(days=1)
-            s_tomorrow = sun(self.location.observer, date=tomorrow)
-            sunrise = s_tomorrow['sunrise']
-            shutdown_time = sunrise.timestamp()
+        # Set startup time to next wakeup time if hour_later alarm would be after next shutdown
+        # If it's operating during the night just shutdown, because there is no sun!
+        if hour_later > self.shutdown_time or self.args.operation_time == "night":
+            self.set_alarm(self.startup_time)
         else:
-            shutdown_time = hour_later.timestamp()
-
-        try:
-            # Clear any existing alarm
-            subprocess.run(["sudo", "sh", "-c", "echo 0 > /sys/class/rtc/rtc0/wakealarm"], check=True)
-            # Set new alarm for sunrise
-            subprocess.run(["sudo", "sh", "-c", f"echo {int(shutdown_time.timestamp())} > /sys/class/rtc/rtc0/wakealarm"],
-                           check=True)
-
-            print(f"Low battery wake alarm set for {shutdown_time.strftime('%Y-%m-%d %H:%M:%S')}")
-            return True
-        except subprocess.CalledProcessError as e:
-            print(f"Error setting wake alarm: {e}")
-            return False
+            self.set_alarm(hour_later)
 
     def check_shutdown_condition(self):
         """Check if it's after sunset or if battery voltage is critically low"""
         # Shutdown if after sunset
-        if self.is_after_sunset():
-            self.set_sunrise_wakeup()
-            self.perform_shutdown("Shutdown! After sunset!")
+        if not self.args.operation_time == 'all':
+            if self.check_shutdown_time():
+                self.set_alarm(self.startup_time)
+                self.perform_shutdown("Shutdown! After sunset!")
 
         # Only check battery voltage if monitor is available
         if not self.battery_monitor_available:
