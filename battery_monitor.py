@@ -257,8 +257,6 @@ class BatteryMonitor:
 
     def run_monitor(self):
         try:
-            time.sleep(5)
-
             print(f"Battery monitoring started. Logging to {self.args.log_file_path}")
 
             # Print status information

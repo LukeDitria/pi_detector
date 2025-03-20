@@ -255,6 +255,8 @@ class HailoLogger():
 
 def main():
     logger = HailoLogger()
+    # Wait for startup and battery monitor checks
+    time.sleep(5)
     logger.run_detection()
 
 if __name__ == "__main__":
