@@ -159,7 +159,8 @@ def camera_calibration():
 
 def correct_image(request, mtx, dist, newcameramtx):
     with MappedArray(request, "main") as m:
-        m.array = cv2.undistort(m.array, mtx, dist, None, newcameramtx)
+        undistorted = cv2.undistort(m.array, mtx, dist, None, newcameramtx)
+        np.copyto(m.array, undistorted)
 
 def test_calibration(mtx, dist, newcameramtx, roi):
     """Test the calibration on a live camera feed"""
