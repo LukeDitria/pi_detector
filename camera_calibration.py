@@ -117,6 +117,8 @@ def camera_calibration():
 
     # Stop the camera before calibration
     picam2.stop()
+    picam2.close()
+
     cv2.destroyAllWindows()
 
     if images_captured == 0:
@@ -211,6 +213,7 @@ def test_calibration(mtx, dist, newcameramtx, roi):
             print(f"Snapshot saved as {filename}")
 
     picam2.stop()
+    picam2.close()
     cv2.destroyAllWindows()
 
 
