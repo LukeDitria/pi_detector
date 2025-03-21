@@ -32,17 +32,23 @@ def camera_calibration():
     time.sleep(2)
 
     # Capture a frame to get the resolution
-    frame = picam2.capture_array()
-    img_shape = (frame.shape[1], frame.shape[0])  # (width, height)
-    print(f"Camera resolution: {img_shape[0]} x {img_shape[1]}")
+    (main_frame, lores_frame), metadata = picam2.capture_arrays(["main", "lores"])
+
+    main_img_shape = (main_frame.shape[1], main_frame.shape[0])  # (width, height)
+    lores_img_shape = (lores_frame.shape[1], lores_frame.shape[0])  # (width, height)
+
+    print(f"Main Camera resolution: {main_img_shape[0]} x {main_img_shape[1]}")
 
     # Prepare object points: (0,0,0), (1,0,0), (2,0,0), ..., (8,5,0)
     objp = np.zeros((board_size[0] * board_size[1], 3), np.float32)
     objp[:, :2] = np.mgrid[0:board_size[0], 0:board_size[1]].T.reshape(-1, 2) * square_size
 
     # Arrays to store object points and image points
-    objpoints = []  # 3D points in real world space
-    imgpoints = []  # 2D points in image plane
+    main_objpoints = []  # 3D points in real world space
+    main_imgpoints = []  # 2D points in image plane
+
+    lores_objpoints = []  # 3D points in real world space
+    lores_imgpoints = []  # 2D points in image plane
 
     # Capture images for calibration
     images_captured = 0
@@ -57,16 +63,18 @@ def camera_calibration():
 
     while images_captured < num_images_needed:
         # Capture frame
-        (main_frame, frame), metadata = picam2.capture_arrays(["main", "lores"])
+        (main_frame, lores_frame), metadata = picam2.capture_arrays(["main", "lores"])
 
         # Create a copy of the frame for drawing
-        display_frame = frame.copy()
+        display_frame = main_frame.copy()
 
         # Convert to grayscale - picam2 returns RGB888, so we convert differently than with OpenCV
-        gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
+        lores_gray = cv2.cvtColor(lores_frame, cv2.COLOR_RGB2GRAY)
+        main_gray = cv2.cvtColor(main_frame, cv2.COLOR_RGB2GRAY)
 
         # Find chessboard corners
-        ret, corners = cv2.findChessboardCorners(gray, board_size, None)
+        lores_ret, lores_corners = cv2.findChessboardCorners(lores_gray, board_size, None)
+        main_ret, main_corners = cv2.findChessboardCorners(main_gray, board_size, None)
 
         # Add text showing progress
         cv2.putText(display_frame, f"Captured: {images_captured}/{num_images_needed}",
@@ -76,13 +84,14 @@ def camera_calibration():
         time_since_last = current_time - last_capture_time
 
         # If corners are found, draw them and consider capturing
-        if ret:
+        if lores_ret and main_ret:
             # Refine corner positions
             criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
-            corners2 = cv2.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
+            lores_corners2 = cv2.cornerSubPix(lores_gray, lores_corners, (11, 11), (-1, -1), criteria)
+            main_corners2 = cv2.cornerSubPix(main_gray, main_corners, (11, 11), (-1, -1), criteria)
 
             # Draw the corners
-            cv2.drawChessboardCorners(display_frame, board_size, corners2, ret)
+            cv2.drawChessboardCorners(display_frame, board_size, main_corners2, main_ret)
 
             # Auto-capture if enough time has passed (to ensure diverse images)
             force_capture = False
@@ -91,8 +100,12 @@ def camera_calibration():
                 force_capture = True
 
             if force_capture or time_since_last > 2:  # Wait at least 2 seconds between captures
-                objpoints.append(objp)
-                imgpoints.append(corners2)
+                main_objpoints.append(objp)
+                main_imgpoints.append(main_corners2)
+
+                lores_objpoints.append(objp)
+                lores_imgpoints.append(lores_corners2)
+
                 images_captured += 1
                 last_capture_time = current_time
 
@@ -129,16 +142,22 @@ def camera_calibration():
 
     # Perform camera calibration
     print("\nCalculating calibration parameters...")
-    ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(
-        objpoints, imgpoints, img_shape, None, None
+    main_ret, main_mtx, main_dist, _, _ = cv2.calibrateCamera(
+        main_objpoints, main_imgpoints, main_img_shape, None, None
     )
 
-    if ret:
-        print(f"Calibration successful with RMS error: {ret}")
+    lores_ret, lores_mtx, lores_dist, _, _ = cv2.calibrateCamera(
+        lores_objpoints, lores_imgpoints, lores_img_shape, None, None
+    )
+
+    if main_ret and lores_ret:
+        print(f"Calibration successful with RMS errors: {main_ret}, {lores_ret}")
         # Save calibration parameters
         calibration_data = {
-            'camera_matrix': mtx,
-            'dist_coeffs': dist,
+            'main_camera_matrix': main_mtx,
+            'main_dist_coeffs': main_dist,
+            'lores_camera_matrix': lores_mtx,
+            'lores_dist_coeffs': lores_dist,
         }
 
         with open(calibration_file, 'wb') as f:
@@ -147,20 +166,38 @@ def camera_calibration():
         print(f"Calibration parameters saved to {calibration_file}")
 
         # Test the calibration on a live feed
-        test_calibration(mtx, dist)
+        test_calibration(calibration_file)
     else:
         print("Calibration failed.")
 
-def correct_image(request, mtx, dist, newcameramtx, roi):
-    x, y, w, h = roi
+def correct_image(request, main_mtx, main_dist, main_newcameramtx, main_roi,
+                  lores_mtx, lores_dist, lores_newcameramtx, lores_roi):
+
     with MappedArray(request, "lores") as m:
-        undistorted = cv2.undistort(m.array, mtx, dist, None, newcameramtx)
+        x, y, w, h = lores_roi
+        undistorted = cv2.undistort(m.array, lores_mtx, lores_dist, None, lores_newcameramtx)
         undistorted = undistorted[y:y + h, x:x + w]
         undistorted = cv2.resize(undistorted, (m.array.shape[1], m.array.shape[0]))
         np.copyto(m.array, undistorted)
 
-def test_calibration(mtx, dist):
+    with MappedArray(request, "main") as m:
+        x, y, w, h = main_roi
+        undistorted = cv2.undistort(m.array, main_mtx, main_dist, None, main_newcameramtx)
+        undistorted = undistorted[y:y + h, x:x + w]
+        undistorted = cv2.resize(undistorted, (m.array.shape[1], m.array.shape[0]))
+        np.copyto(m.array, undistorted)
+
+def test_calibration(calibration_file):
     print("\n==== TESTING CALIBRATION ====")
+
+    # Load existing calibration data
+    with open(calibration_file, 'rb') as f:
+        calibration_data = pickle.load(f)
+
+    main_mtx = calibration_data['main_camera_matrix']
+    main_dist = calibration_data['main_dist_coeffs']
+    lores_mtx = calibration_data['lores_camera_matrix']
+    lores_dist = calibration_data['lores_dist_coeffs']
 
     # Initialize Picamera2 again for testing
     picam2 = Picamera2()
@@ -169,8 +206,16 @@ def test_calibration(mtx, dist):
         lores={'size': (1280, 640), "format": "RGB888"})
     picam2.configure(preview_config)
 
-    newcameramtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist, (1280, 640), 1, (1280, 640))
-    picam2.pre_callback = lambda req: correct_image(req, mtx, dist, newcameramtx, roi)
+    main_newcameramtx, main_roi = cv2.getOptimalNewCameraMatrix(main_mtx, main_dist,
+                                                                (1920,1080), 1,
+                                                                (1920,1080))
+
+    lores_newcameramtx, lores_roi = cv2.getOptimalNewCameraMatrix(lores_mtx, lores_dist,
+                                                                (1280, 640), 1,
+                                                                (1280, 640))
+
+    picam2.pre_callback = lambda req: correct_image(req, main_mtx, main_dist, main_newcameramtx, main_roi,
+                                                    lores_mtx, lores_dist, lores_newcameramtx, lores_roi)
 
     picam2.start()
 
@@ -208,15 +253,8 @@ def main():
         choice = input("Enter your choice (1/2): ")
 
         if choice == "2":
-            # Load existing calibration data
-            with open(calibration_file, 'rb') as f:
-                calibration_data = pickle.load(f)
-
-            mtx = calibration_data['camera_matrix']
-            dist = calibration_data['dist_coeffs']
-
             # Test with existing calibration
-            test_calibration(mtx, dist)
+            test_calibration(calibration_file)
             return
 
     # Perform new calibration
