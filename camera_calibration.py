@@ -3,6 +3,8 @@ import cv2
 import os
 import pickle
 import time
+from picamera2 import Picamera2
+from libcamera import Transform
 
 
 def camera_calibration():
@@ -12,21 +14,26 @@ def camera_calibration():
     num_images_needed = 15  # Number of calibration images to capture
     calibration_file = "camera_calibration.pkl"
 
-    # Initialize camera
+    # Initialize Picamera2
     print("Initializing camera...")
-    cap = cv2.VideoCapture(0)
-    if not cap.isOpened():
-        print("Error: Could not open camera.")
-        return
+    picam2 = Picamera2()
 
-    # Get camera resolution
-    ret, frame = cap.read()
-    if not ret:
-        print("Error: Can't receive frame from camera.")
-        cap.release()
-        return
+    # Configure the camera
+    preview_config = picam2.create_preview_configuration(
+        main={"size": (1280, 720), "format": "RGB888"},
+        transform=Transform(hflip=True, vflip=True)  # Flip if needed, adjust based on your camera orientation
+    )
+    picam2.configure(preview_config)
 
-    img_shape = frame.shape[:2][::-1]  # (width, height)
+    # Start the camera
+    picam2.start()
+
+    # Allow camera to warm up
+    time.sleep(2)
+
+    # Capture a frame to get the resolution
+    frame = picam2.capture_array()
+    img_shape = (frame.shape[1], frame.shape[0])  # (width, height)
     print(f"Camera resolution: {img_shape[0]} x {img_shape[1]}")
 
     # Prepare object points: (0,0,0), (1,0,0), (2,0,0), ..., (8,5,0)
@@ -50,16 +57,13 @@ def camera_calibration():
 
     while images_captured < num_images_needed:
         # Capture frame
-        ret, frame = cap.read()
-        if not ret:
-            print("Error: Can't receive frame from camera.")
-            break
+        frame = picam2.capture_array()
 
         # Create a copy of the frame for drawing
         display_frame = frame.copy()
 
-        # Convert to grayscale
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        # Convert to grayscale - picam2 returns RGB888, so we convert differently than with OpenCV
+        gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
 
         # Find chessboard corners
         ret, corners = cv2.findChessboardCorners(gray, board_size, None)
@@ -82,7 +86,8 @@ def camera_calibration():
 
             # Auto-capture if enough time has passed (to ensure diverse images)
             force_capture = False
-            if cv2.waitKey(1) & 0xFF == ord('c'):
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord('c'):
                 force_capture = True
 
             if force_capture or time_since_last > 2:  # Wait at least 2 seconds between captures
@@ -100,8 +105,9 @@ def camera_calibration():
                 cv2.imshow('Camera Calibration', display_frame)
                 cv2.waitKey(500)  # Pause briefly to show the capture message
 
-        # Display the frame
-        cv2.imshow('Camera Calibration', display_frame)
+        # Display the frame - convert from RGB to BGR for display with OpenCV
+        display_frame_bgr = cv2.cvtColor(display_frame, cv2.COLOR_RGB2BGR)
+        cv2.imshow('Camera Calibration', display_frame_bgr)
 
         # Exit if ESC is pressed
         key = cv2.waitKey(1)
@@ -112,8 +118,8 @@ def camera_calibration():
             else:
                 print(f"Need at least 5 images for calibration. Currently have {images_captured}.")
 
-    # Release camera before calibration
-    cap.release()
+    # Stop the camera before calibration
+    picam2.stop()
     cv2.destroyAllWindows()
 
     if images_captured == 0:
@@ -129,10 +135,15 @@ def camera_calibration():
     if ret:
         print(f"Calibration successful with RMS error: {ret}")
 
+        # Calculate optimal camera matrix once
+        newcameramtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist, img_shape, 1, img_shape)
+
         # Save calibration parameters
         calibration_data = {
             'camera_matrix': mtx,
             'dist_coeffs': dist,
+            'optimal_camera_matrix': newcameramtx,
+            'roi': roi,
             'image_shape': img_shape
         }
 
@@ -142,39 +153,42 @@ def camera_calibration():
         print(f"Calibration parameters saved to {calibration_file}")
 
         # Test the calibration on a live feed
-        test_calibration(mtx, dist)
+        test_calibration(mtx, dist, newcameramtx, roi)
     else:
         print("Calibration failed.")
 
 
-def test_calibration(mtx, dist):
+def test_calibration(mtx, dist, newcameramtx, roi):
     """Test the calibration on a live camera feed"""
     print("\n==== TESTING CALIBRATION ====")
     print("Showing original and undistorted view side by side.")
     print("Press 'q' to quit, 's' to save a snapshot.")
 
-    cap = cv2.VideoCapture(0)
-    if not cap.isOpened():
-        print("Error: Could not open camera for testing.")
-        return
+    # Initialize Picamera2 again for testing
+    picam2 = Picamera2()
+    preview_config = picam2.create_preview_configuration(
+        main={"size": (1280, 720), "format": "RGB888"},
+        transform=Transform(hflip=True, vflip=True)  # Match the same transform used during calibration
+    )
+    picam2.configure(preview_config)
+    picam2.start()
+
+    # Allow camera to warm up
+    time.sleep(1)
+
+    # Extract ROI parameters
+    x, y, w, h = roi
 
     snapshot_count = 0
 
     while True:
-        ret, frame = cap.read()
-        if not ret:
-            print("Error: Can't receive frame from camera.")
-            break
-
-        # Get optimal new camera matrix
-        h, w = frame.shape[:2]
-        newcameramtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist, (w, h), 1, (w, h))
+        # Capture frame
+        frame = picam2.capture_array()
 
         # Undistort the image
         undistorted = cv2.undistort(frame, mtx, dist, None, newcameramtx)
 
         # Crop the undistorted image (optional)
-        x, y, w, h = roi
         if all(val > 0 for val in [x, y, w, h]):
             undistorted = undistorted[y:y + h, x:x + w]
             # Resize undistorted to match original frame size for side-by-side display
@@ -184,8 +198,12 @@ def test_calibration(mtx, dist):
         cv2.putText(frame, "Original", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
         cv2.putText(undistorted, "Undistorted", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
+        # Convert from RGB to BGR for display with OpenCV
+        frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+        undistorted_bgr = cv2.cvtColor(undistorted, cv2.COLOR_RGB2BGR)
+
         # Display original and undistorted frames side by side
-        combined = np.hstack((frame, undistorted))
+        combined = np.hstack((frame_bgr, undistorted_bgr))
         cv2.imshow('Calibration Test: Original | Undistorted', combined)
 
         # Process key presses
@@ -199,12 +217,48 @@ def test_calibration(mtx, dist):
             cv2.imwrite(filename, combined)
             print(f"Snapshot saved as {filename}")
 
-    cap.release()
+    picam2.stop()
     cv2.destroyAllWindows()
 
 
-if __name__ == "__main__":
+def main():
     os.system('cls' if os.name == 'nt' else 'clear')  # Clear the console
-    print("===== CAMERA CALIBRATION TOOL =====")
+    print("===== PI CAMERA CALIBRATION TOOL =====")
+
+    # Check if calibration file exists
+    calibration_file = "camera_calibration.pkl"
+    if os.path.exists(calibration_file):
+        print(f"Found existing calibration file: {calibration_file}")
+        print("Options:")
+        print("1. Perform new calibration")
+        print("2. Test existing calibration")
+        choice = input("Enter your choice (1/2): ")
+
+        if choice == "2":
+            # Load existing calibration data
+            with open(calibration_file, 'rb') as f:
+                calibration_data = pickle.load(f)
+
+            mtx = calibration_data['camera_matrix']
+            dist = calibration_data['dist_coeffs']
+
+            # Check if we have the optimal camera matrix already
+            if 'optimal_camera_matrix' in calibration_data and 'roi' in calibration_data:
+                newcameramtx = calibration_data['optimal_camera_matrix']
+                roi = calibration_data['roi']
+            else:
+                # Calculate it if not found
+                img_shape = calibration_data['image_shape']
+                newcameramtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist, img_shape, 1, img_shape)
+
+            # Test with existing calibration
+            test_calibration(mtx, dist, newcameramtx, roi)
+            return
+
+    # Perform new calibration
     camera_calibration()
     print("\nCalibration process completed.")
+
+
+if __name__ == "__main__":
+    main()
