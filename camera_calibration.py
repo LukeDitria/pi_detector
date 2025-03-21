@@ -21,7 +21,7 @@ def camera_calibration():
 
     # Configure the camera
     preview_config = picam2.create_preview_configuration(
-        main={"size": (1280, 720), "format": "RGB888"})
+        main={"size": (1920,1080), "format": "RGB888"})
     picam2.configure(preview_config)
 
     # Start the camera
@@ -166,15 +166,13 @@ def correct_image(request, mtx, dist, newcameramtx, roi):
         np.copyto(m.array, undistorted)
 
 def test_calibration(mtx, dist, newcameramtx, roi):
-    """Test the calibration on a live camera feed"""
     print("\n==== TESTING CALIBRATION ====")
-    print("Showing original and undistorted view side by side.")
-    print("Press 'q' to quit, 's' to save a snapshot.")
 
     # Initialize Picamera2 again for testing
     picam2 = Picamera2()
     preview_config = picam2.create_preview_configuration(
-        main={"size": (1280, 720), "format": "RGB888"})
+        main={"size": (1920,1080), "format": "RGB888"},
+        lores={'size': (1280, 640), "format": "RGB888"})
     picam2.configure(preview_config)
     picam2.pre_callback = lambda req: correct_image(req, mtx, dist, newcameramtx, roi)
 
@@ -185,24 +183,11 @@ def test_calibration(mtx, dist, newcameramtx, roi):
 
     while True:
         # Capture frame
-        frame = picam2.capture_array()
-
-        # # Undistort the image
-        # undistorted = cv2.undistort(frame, mtx, dist, None, newcameramtx)
-
-        # # Crop the undistorted image (optional)
-        # if all(val > 0 for val in [x, y, w, h]):
-        #     undistorted = undistorted[y:y + h, x:x + w]
-        #     # Resize undistorted to match original frame size for side-by-side display
-        #     undistorted = cv2.resize(undistorted, (frame.shape[1], frame.shape[0]))
+        (main_frame, frame), metadata = picam2.capture_arrays(["main", "lores"])
 
         # Add labels
-        cv2.putText(frame, "Original", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-        # cv2.putText(undistorted, "Undistorted", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-
-        # Display original and undistorted frames side by side
-        # combined = np.hstack((frame, undistorted))
-        cv2.imshow('Calibration Test Undistorted', frame)
+        cv2.putText(frame, "Corrected", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+        cv2.imshow('Calibration Test Corrected', frame)
 
         # Process key presses
         key = cv2.waitKey(1) & 0xFF
