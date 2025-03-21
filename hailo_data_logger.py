@@ -48,6 +48,9 @@ def parse_arguments():
                         help="Auto selects a device mounted to /media to use as the storage device for outputs")
     parser.add_argument("--use_bgr", action='store_true',
                         help="Use BGR image not RGB")
+    parser.add_argument("--crop_to_square", action='store_true',
+                        help="Crop the input frame to be square")
+
     return parser.parse_args()
 
 
@@ -175,17 +178,21 @@ class HailoLogger():
                 # Configure camera streams
                 main_res = {'size': (self.video_w, self.video_h), 'format': 'XRGB8888'}
 
-                # Keep the aspect ratio of the main image in the lo-res image
-                self.lores_w = int(round(self.model_w * (self.video_w / self.video_h)))
-                logging.info(f"Low Res video shape HxW: {self.model_h}, {self.lores_w}")
-
                 if self.args.use_bgr:
                     lores_format = 'BGR888'
                 else:
                     lores_format = 'RGB888'
 
-                lores = {'size': (self.lores_w, self.model_h), 'format': lores_format}
                 controls = {'FrameRate': self.args.fps}
+
+                # Keep the aspect ratio of the main image in the lo-res image
+                if self.args.crop_to_square:
+                    self.lores_w = int(round(self.model_w * (self.video_w / self.video_h)))
+                    logging.info(f"Low Res video shape HxW: {self.model_h}, {self.lores_w}")
+                    lores = {'size': (self.lores_w, self.model_h), 'format': lores_format}
+                else:
+                    logging.info(f"Low Res video shape HxW: {self.model_h}, {self.model_w}")
+                    lores = {'size': (self.model_w, self.model_h), 'format': lores_format}
 
                 config = picam2.create_video_configuration(main_res, lores=lores, controls=controls)
                 picam2.configure(config)
@@ -209,7 +216,7 @@ class HailoLogger():
 
                         # Resize and crop to model size
                         frame = utils.pre_process_image(frame, rotate=self.args.rotate_img,
-                                                                   w=self.lores_w, h=self.model_h)
+                                                        crop_to_square=self.args.crop_to_square)
                         results = hailo.run(frame)
 
                         # Extract and process detections
