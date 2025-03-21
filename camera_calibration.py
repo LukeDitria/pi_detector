@@ -113,7 +113,7 @@ def camera_calibration():
                 print(f"Image {images_captured}/{num_images_needed} captured!")
 
                 # Add a visual feedback for the capture
-                cv2.putText(display_frame, "CAPTURED!", (frame.shape[1] // 2 - 100, frame.shape[0] // 2),
+                cv2.putText(display_frame, "CAPTURED!", (display_frame.shape[1] // 2 - 100, display_frame.shape[0] // 2),
                             cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 0, 255), 3)
                 cv2.imshow('Camera Calibration', display_frame)
                 cv2.waitKey(500)  # Pause briefly to show the capture message
