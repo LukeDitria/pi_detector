@@ -134,17 +134,10 @@ def camera_calibration():
 
     if ret:
         print(f"Calibration successful with RMS error: {ret}")
-
-        # Calculate optimal camera matrix once
-        newcameramtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist, img_shape, 1, img_shape)
-
         # Save calibration parameters
         calibration_data = {
             'camera_matrix': mtx,
             'dist_coeffs': dist,
-            'optimal_camera_matrix': newcameramtx,
-            'roi': roi,
-            'image_shape': img_shape
         }
 
         with open(calibration_file, 'wb') as f:
@@ -153,13 +146,13 @@ def camera_calibration():
         print(f"Calibration parameters saved to {calibration_file}")
 
         # Test the calibration on a live feed
-        test_calibration(mtx, dist, newcameramtx, roi)
+        test_calibration(mtx, dist)
     else:
         print("Calibration failed.")
 
 def correct_image(request, mtx, dist, newcameramtx, roi):
     x, y, w, h = roi
-    with MappedArray(request, "lores") as m:
+    with MappedArray(request, "main") as m:
         undistorted = cv2.undistort(m.array, mtx, dist, None, newcameramtx)
         undistorted = undistorted[y:y + h, x:x + w]
         undistorted = cv2.resize(undistorted, (m.array.shape[1], m.array.shape[0]))
@@ -175,7 +168,7 @@ def test_calibration(mtx, dist):
         lores={'size': (1280, 640), "format": "RGB888"})
     picam2.configure(preview_config)
 
-    newcameramtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist, (1280, 640), 1, (1280, 640))
+    newcameramtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist, (1920, 1080), 1, (1920, 1080))
     picam2.pre_callback = lambda req: correct_image(req, mtx, dist, newcameramtx, roi)
 
     picam2.start()
@@ -188,7 +181,7 @@ def test_calibration(mtx, dist):
 
         # Add labels
         cv2.putText(frame, "Corrected", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-        cv2.imshow('Calibration Test Corrected', frame)
+        cv2.imshow('Calibration Test Corrected', main_frame)
 
         # Process key presses
         key = cv2.waitKey(1) & 0xFF
