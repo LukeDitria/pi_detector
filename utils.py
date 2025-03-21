@@ -48,7 +48,7 @@ def log_detection(filename, output_dir, detections):
     with open(json_path, 'w') as f:
         json.dump(results, f, indent=2)
 
-def pre_process_image(image, rotate="cw", h=640, w=640):
+def pre_process_image(image, rotate="cw", crop_to_square=False):
     if rotate == "cw":
         image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
     elif rotate == "ccw":
@@ -56,11 +56,12 @@ def pre_process_image(image, rotate="cw", h=640, w=640):
     elif rotate == "flip":
         image = cv2.rotate(image, cv2.ROTATE_180)
 
-    # assuming that w > h
-    h, w, _ = image.shape
-    if not h == w:
-        split = (w - h)//2
-        image = np.ascontiguousarray(image[:, split:split+h])
+    if crop_to_square:
+        # assuming that w > h
+        h, w, _ = image.shape
+        if not h == w:
+            split = (w - h)//2
+            image = np.ascontiguousarray(image[:, split:split+h])
 
     return image
 
