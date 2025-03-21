@@ -38,11 +38,6 @@ def parse_arguments():
 
 class BatteryMonitor:
     def __init__(self):
-        self.args = parse_arguments()
-
-        self.battery_monitor_available = True
-        self.firestore_available = False
-
         # Set up logging to stdout (systemd will handle redirection)
         logging.basicConfig(
             level=logging.INFO,
@@ -52,6 +47,12 @@ class BatteryMonitor:
                 logging.StreamHandler(sys.stderr)  # Warnings and errors go to stderr
             ]
         )
+        logging.info("Capture Box Awake!")
+
+        self.args = parse_arguments()
+
+        self.battery_monitor_available = True
+        self.firestore_available = False
 
         # Replace with your location coordinates and timezone
         try:

@@ -53,10 +53,6 @@ def parse_arguments():
 
 class HailoLogger():
     def __init__(self):
-        # First parse command line arguments with all defaults
-        self.args = parse_arguments()
-        self.model_h, self.model_w = 640, 640
-
         # Set up logging to stdout (systemd will handle redirection)
         logging.basicConfig(
             level=logging.INFO,
@@ -66,6 +62,11 @@ class HailoLogger():
                 logging.StreamHandler(sys.stderr)  # Warnings and errors go to stderr
             ]
         )
+        logging.info("Capture Box Awake!")
+
+        # First parse command line arguments with all defaults
+        self.args = parse_arguments()
+        self.model_h, self.model_w = 640, 640
 
         # Load config file if provided and override CLI args
         if self.args.config_file:
@@ -169,7 +170,7 @@ class HailoLogger():
             no_detections_run = 0
 
             encoding = False
-
+            logging.info("Capture Box Starting Run!")
             with Picamera2() as picam2:
                 # Configure camera streams
                 main_res = {'size': (self.video_w, self.video_h), 'format': 'XRGB8888'}
@@ -228,10 +229,16 @@ class HailoLogger():
                                 if self.args.use_bgr:
                                     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-                                cv2.imwrite(lores_path, frame)
+                                try:
+                                    cv2.imwrite(lores_path, frame)
+                                except Exception as e:
+                                    logging.info(f"Image saving failed: {e}")
 
-                            # Log detections locally
-                            utils.log_detection(filename, self.json_detections_path, detections)
+                            try:
+                                # Log detections locally
+                                utils.log_detection(filename, self.json_detections_path, detections)
+                            except Exception as e:
+                                logging.info(f"Local detection logging failed: {e}")
 
                             # Log detections to Firestore
                             if self.args.log_remote:
