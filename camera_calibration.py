@@ -21,7 +21,8 @@ def camera_calibration():
 
     # Configure the camera
     preview_config = picam2.create_preview_configuration(
-        main={"size": (1920,1080), "format": "RGB888"})
+        main={"size": (1920,1080), "format": "RGB888"},
+        lores={'size': (1280, 640), "format": "RGB888"})
     picam2.configure(preview_config)
 
     # Start the camera
@@ -56,7 +57,7 @@ def camera_calibration():
 
     while images_captured < num_images_needed:
         # Capture frame
-        frame = picam2.capture_array()
+        (main_frame, frame), metadata = picam2.capture_arrays(["main", "lores"])
 
         # Create a copy of the frame for drawing
         display_frame = frame.copy()
@@ -152,7 +153,7 @@ def camera_calibration():
 
 def correct_image(request, mtx, dist, newcameramtx, roi):
     x, y, w, h = roi
-    with MappedArray(request, "main") as m:
+    with MappedArray(request, "lores") as m:
         undistorted = cv2.undistort(m.array, mtx, dist, None, newcameramtx)
         undistorted = undistorted[y:y + h, x:x + w]
         undistorted = cv2.resize(undistorted, (m.array.shape[1], m.array.shape[0]))
@@ -168,7 +169,7 @@ def test_calibration(mtx, dist):
         lores={'size': (1280, 640), "format": "RGB888"})
     picam2.configure(preview_config)
 
-    newcameramtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist, (1920, 1080), 1, (1920, 1080))
+    newcameramtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist, (1280, 640), 1, (1280, 640))
     picam2.pre_callback = lambda req: correct_image(req, mtx, dist, newcameramtx, roi)
 
     picam2.start()
@@ -181,7 +182,7 @@ def test_calibration(mtx, dist):
 
         # Add labels
         cv2.putText(frame, "Corrected", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-        cv2.imshow('Calibration Test Corrected', main_frame)
+        cv2.imshow('Calibration Test Corrected', frame)
 
         # Process key presses
         key = cv2.waitKey(1) & 0xFF
