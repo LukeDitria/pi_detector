@@ -159,13 +159,13 @@ def camera_calibration():
 
 def correct_image(request, mtx, dist, newcameramtx, roi):
     x, y, w, h = roi
-    with MappedArray(request, "main") as m:
+    with MappedArray(request, "lowres") as m:
         undistorted = cv2.undistort(m.array, mtx, dist, None, newcameramtx)
         undistorted = undistorted[y:y + h, x:x + w]
         undistorted = cv2.resize(undistorted, (m.array.shape[1], m.array.shape[0]))
         np.copyto(m.array, undistorted)
 
-def test_calibration(mtx, dist, newcameramtx, roi):
+def test_calibration(mtx, dist):
     print("\n==== TESTING CALIBRATION ====")
 
     # Initialize Picamera2 again for testing
@@ -174,13 +174,14 @@ def test_calibration(mtx, dist, newcameramtx, roi):
         main={"size": (1920,1080), "format": "RGB888"},
         lores={'size': (1280, 640), "format": "RGB888"})
     picam2.configure(preview_config)
+
+    newcameramtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist, (1280, 640), 1, (1280, 640))
     picam2.pre_callback = lambda req: correct_image(req, mtx, dist, newcameramtx, roi)
 
     picam2.start()
 
     # Allow camera to warm up
     time.sleep(1)
-
     while True:
         # Capture frame
         (main_frame, frame), metadata = picam2.capture_arrays(["main", "lores"])
@@ -220,17 +221,8 @@ def main():
             mtx = calibration_data['camera_matrix']
             dist = calibration_data['dist_coeffs']
 
-            # Check if we have the optimal camera matrix already
-            if 'optimal_camera_matrix' in calibration_data and 'roi' in calibration_data:
-                newcameramtx = calibration_data['optimal_camera_matrix']
-                roi = calibration_data['roi']
-            else:
-                # Calculate it if not found
-                img_shape = calibration_data['image_shape']
-                newcameramtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist, img_shape, 1, img_shape)
-
             # Test with existing calibration
-            test_calibration(mtx, dist, newcameramtx, roi)
+            test_calibration(mtx, dist)
             return
 
     # Perform new calibration
