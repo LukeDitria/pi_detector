@@ -157,9 +157,12 @@ def camera_calibration():
     else:
         print("Calibration failed.")
 
-def correct_image(request, mtx, dist, newcameramtx):
+def correct_image(request, mtx, dist, newcameramtx, roi):
+    x, y, w, h = roi
     with MappedArray(request, "main") as m:
         undistorted = cv2.undistort(m.array, mtx, dist, None, newcameramtx)
+        undistorted = undistorted[y:y + h, x:x + w]
+        undistorted = cv2.resize(undistorted, (m.array.shape[1], m.array.shape[0]))
         np.copyto(m.array, undistorted)
 
 def test_calibration(mtx, dist, newcameramtx, roi):
@@ -173,7 +176,7 @@ def test_calibration(mtx, dist, newcameramtx, roi):
     preview_config = picam2.create_preview_configuration(
         main={"size": (1280, 720), "format": "RGB888"})
     picam2.configure(preview_config)
-    picam2.pre_callback = lambda req: correct_image(req, mtx, dist, newcameramtx)
+    picam2.pre_callback = lambda req: correct_image(req, mtx, dist, newcameramtx, roi)
 
     picam2.start()
 
