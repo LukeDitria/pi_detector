@@ -5,6 +5,7 @@ import pickle
 import time
 from picamera2 import Picamera2
 from libcamera import Transform
+from picamera2 import MappedArray, Preview
 
 
 def camera_calibration():
@@ -156,6 +157,11 @@ def camera_calibration():
     else:
         print("Calibration failed.")
 
+def correct_image(request, **kwargs):
+    with MappedArray(request, "main") as m:
+        m.array = cv2.undistort(m.array, kwargs.get('mtx'),
+                                kwargs.get('dist'), None,
+                                kwargs.get('newcameramtx'))
 
 def test_calibration(mtx, dist, newcameramtx, roi):
     """Test the calibration on a live camera feed"""
@@ -166,51 +172,40 @@ def test_calibration(mtx, dist, newcameramtx, roi):
     # Initialize Picamera2 again for testing
     picam2 = Picamera2()
     preview_config = picam2.create_preview_configuration(
-        main={"size": (1280, 720), "format": "RGB888"},
-        transform=Transform(hflip=True, vflip=True)  # Match the same transform used during calibration
-    )
+        main={"size": (1280, 720), "format": "RGB888"})
     picam2.configure(preview_config)
+    picam2.pre_callback = lambda req: correct_image(req, mtx, dist, newcameramtx)
+
     picam2.start()
 
     # Allow camera to warm up
     time.sleep(1)
 
-    # Extract ROI parameters
-    x, y, w, h = roi
-
-    snapshot_count = 0
-
     while True:
         # Capture frame
         frame = picam2.capture_array()
 
-        # Undistort the image
-        undistorted = cv2.undistort(frame, mtx, dist, None, newcameramtx)
+        # # Undistort the image
+        # undistorted = cv2.undistort(frame, mtx, dist, None, newcameramtx)
 
-        # Crop the undistorted image (optional)
-        if all(val > 0 for val in [x, y, w, h]):
-            undistorted = undistorted[y:y + h, x:x + w]
-            # Resize undistorted to match original frame size for side-by-side display
-            undistorted = cv2.resize(undistorted, (frame.shape[1], frame.shape[0]))
+        # # Crop the undistorted image (optional)
+        # if all(val > 0 for val in [x, y, w, h]):
+        #     undistorted = undistorted[y:y + h, x:x + w]
+        #     # Resize undistorted to match original frame size for side-by-side display
+        #     undistorted = cv2.resize(undistorted, (frame.shape[1], frame.shape[0]))
 
         # Add labels
         cv2.putText(frame, "Original", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-        cv2.putText(undistorted, "Undistorted", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+        # cv2.putText(undistorted, "Undistorted", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
         # Display original and undistorted frames side by side
-        combined = np.hstack((frame, undistorted))
-        cv2.imshow('Calibration Test: Original | Undistorted', combined)
+        # combined = np.hstack((frame, undistorted))
+        cv2.imshow('Calibration Test Undistorted', frame)
 
         # Process key presses
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
             break
-        elif key == ord('s'):
-            # Save a snapshot of the comparison
-            snapshot_count += 1
-            filename = f"calibration_test_{snapshot_count}.jpg"
-            cv2.imwrite(filename, combined)
-            print(f"Snapshot saved as {filename}")
 
     picam2.stop()
     picam2.close()
