@@ -159,7 +159,7 @@ def camera_calibration():
 
 def correct_image(request, mtx, dist, newcameramtx, roi):
     x, y, w, h = roi
-    with MappedArray(request, "lowres") as m:
+    with MappedArray(request, "lores") as m:
         undistorted = cv2.undistort(m.array, mtx, dist, None, newcameramtx)
         undistorted = undistorted[y:y + h, x:x + w]
         undistorted = cv2.resize(undistorted, (m.array.shape[1], m.array.shape[0]))
