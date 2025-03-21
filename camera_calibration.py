@@ -7,6 +7,7 @@ from picamera2 import Picamera2
 from libcamera import Transform
 from picamera2 import MappedArray, Preview
 
+import utils
 
 def camera_calibration():
     # Parameters
@@ -170,34 +171,8 @@ def camera_calibration():
     else:
         print("Calibration failed.")
 
-def correct_image(request, main_mtx, main_dist, main_newcameramtx, main_roi,
-                  lores_mtx, lores_dist, lores_newcameramtx, lores_roi):
-
-    with MappedArray(request, "lores") as m:
-        x, y, w, h = lores_roi
-        undistorted = cv2.undistort(m.array, lores_mtx, lores_dist, None, lores_newcameramtx)
-        undistorted = undistorted[y:y + h, x:x + w]
-        undistorted = cv2.resize(undistorted, (m.array.shape[1], m.array.shape[0]))
-        np.copyto(m.array, undistorted)
-
-    with MappedArray(request, "main") as m:
-        x, y, w, h = main_roi
-        undistorted = cv2.undistort(m.array, main_mtx, main_dist, None, main_newcameramtx)
-        undistorted = undistorted[y:y + h, x:x + w]
-        undistorted = cv2.resize(undistorted, (m.array.shape[1], m.array.shape[0]))
-        np.copyto(m.array, undistorted)
-
 def test_calibration(calibration_file):
     print("\n==== TESTING CALIBRATION ====")
-
-    # Load existing calibration data
-    with open(calibration_file, 'rb') as f:
-        calibration_data = pickle.load(f)
-
-    main_mtx = calibration_data['main_camera_matrix']
-    main_dist = calibration_data['main_dist_coeffs']
-    lores_mtx = calibration_data['lores_camera_matrix']
-    lores_dist = calibration_data['lores_dist_coeffs']
 
     # Initialize Picamera2 again for testing
     picam2 = Picamera2()
@@ -206,16 +181,11 @@ def test_calibration(calibration_file):
         lores={'size': (1280, 640), "format": "RGB888"})
     picam2.configure(preview_config)
 
-    main_newcameramtx, main_roi = cv2.getOptimalNewCameraMatrix(main_mtx, main_dist,
-                                                                (1920,1080), 1,
-                                                                (1920,1080))
-
-    lores_newcameramtx, lores_roi = cv2.getOptimalNewCameraMatrix(lores_mtx, lores_dist,
-                                                                (1280, 640), 1,
-                                                                (1280, 640))
-
-    picam2.pre_callback = lambda req: correct_image(req, main_mtx, main_dist, main_newcameramtx, main_roi,
-                                                    lores_mtx, lores_dist, lores_newcameramtx, lores_roi)
+    cam_params = utils.get_calibration_params(calibration_file,
+                                              (1920,1080),
+                                              (1280, 640))
+    if cam_params:
+        picam2.pre_callback = lambda req: utils.correct_image(req, cam_params)
 
     picam2.start()
 

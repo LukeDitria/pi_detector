@@ -6,6 +6,7 @@ import json
 from datetime import datetime
 import logging
 import sys
+import pickle
 
 from picamera2 import Picamera2, Preview
 from picamera2.devices import Hailo
@@ -31,6 +32,8 @@ def parse_arguments():
                         help="Confidence threshold (default: 0.5)")
     parser.add_argument("--video_size", type=str, default="1920,1080",
                         help="Video size as width,height (default: 1920,1080)")
+    parser.add_argument("--calibration_file", type=str, default="camera_calibration.pkl",
+                        help="Camera calibration/correction parameters")
     parser.add_argument("--fps", type=int, default=1,
                         help="Frames per second (default: 1)")
     parser.add_argument("--project_id", type=str,
@@ -186,16 +189,22 @@ class HailoLogger():
                 controls = {'FrameRate': self.args.fps}
 
                 # Keep the aspect ratio of the main image in the lo-res image
+                self.lores_w = self.model_w
+                self.lores_h = self.model_h
                 if self.args.crop_to_square:
                     self.lores_w = int(round(self.model_w * (self.video_w / self.video_h)))
-                    logging.info(f"Low Res video shape HxW: {self.model_h}, {self.lores_w}")
-                    lores = {'size': (self.lores_w, self.model_h), 'format': lores_format}
-                else:
-                    logging.info(f"Low Res video shape HxW: {self.model_h}, {self.model_w}")
-                    lores = {'size': (self.model_w, self.model_h), 'format': lores_format}
+
+                logging.info(f"Low Res video shape HxW: {self.lores_h}, {self.lores_w}")
+                lores = {'size': (self.lores_w, self.lores_h), 'format': lores_format}
 
                 config = picam2.create_video_configuration(main_res, lores=lores, controls=controls)
                 picam2.configure(config)
+
+                cam_params = utils.get_calibration_params(self.args.calibration_file,
+                                                          (self.video_w, self.video_h),
+                                                          (self.lores_w, self.lores_h))
+                if cam_params:
+                    picam2.pre_callback = lambda req: utils.correct_image(req, cam_params)
 
                 if self.args.create_preview:
                     picam2.start_preview(Preview.QT, x=0, y=0, width=self.video_w, height=self.video_h)

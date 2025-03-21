@@ -1,6 +1,10 @@
+import numpy as np
 import cv2
 import os
-import numpy as np
+import pickle
+from picamera2 import Picamera2
+from picamera2 import MappedArray, Preview
+
 
 def read_class_list(filepath):
     """Read list of class names from a text file."""
@@ -92,3 +96,54 @@ def find_first_usb_drive():
 
     # No USB drives found
     return None
+
+def correct_image(request, cam_params):
+
+    with MappedArray(request, "lores") as m:
+        x, y, w, h = cam_params['lores_roi']
+        undistorted = cv2.undistort(m.array, cam_params['lores_mtx'], cam_params['lores_dist'],
+                                    None, cam_params['lores_newcameramtx'])
+        undistorted = undistorted[y:y + h, x:x + w]
+        undistorted = cv2.resize(undistorted, (m.array.shape[1], m.array.shape[0]))
+        np.copyto(m.array, undistorted)
+
+    with MappedArray(request, "main") as m:
+        x, y, w, h = cam_params['main_roi']
+        undistorted = cv2.undistort(m.array, cam_params['main_mtx'], cam_params['main_dist'],
+                                    None, cam_params['main_newcameramtx'])
+        undistorted = undistorted[y:y + h, x:x + w]
+        undistorted = cv2.resize(undistorted, (m.array.shape[1], m.array.shape[0]))
+        np.copyto(m.array, undistorted)
+
+
+def get_calibration_params(calibration_file, main_wh, lores_wh):
+    if os.path.exists(calibration_file):
+        with open(calibration_file, 'rb') as f:
+            calibration_data = pickle.load(f)
+
+        main_mtx = calibration_data['main_camera_matrix']
+        main_dist = calibration_data['main_dist_coeffs']
+        lores_mtx = calibration_data['lores_camera_matrix']
+        lores_dist = calibration_data['lores_dist_coeffs']
+
+        main_newcameramtx, main_roi = cv2.getOptimalNewCameraMatrix(main_mtx, main_dist,
+                                                                    main_wh, 1,
+                                                                    main_wh)
+
+        lores_newcameramtx, lores_roi = cv2.getOptimalNewCameraMatrix(lores_mtx, lores_dist,
+                                                                      lores_wh, 1,
+                                                                      lores_wh)
+
+        cam_params = {"main_mtx": main_mtx,
+                      "main_dist": main_dist,
+                      "main_newcameramtx": main_newcameramtx,
+                      "main_roi": main_roi,
+                      "lores_mtx": lores_mtx,
+                      "lores_dist": lores_dist,
+                      "lores_newcameramtx": lores_newcameramtx,
+                      "lores_roi": lores_roi
+                      }
+
+        return cam_params
+    else:
+        return None
