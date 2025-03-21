@@ -20,9 +20,7 @@ def camera_calibration():
 
     # Configure the camera
     preview_config = picam2.create_preview_configuration(
-        main={"size": (1280, 720), "format": "RGB888"},
-        transform=Transform(hflip=True, vflip=True)  # Flip if needed, adjust based on your camera orientation
-    )
+        main={"size": (1280, 720), "format": "RGB888"})
     picam2.configure(preview_config)
 
     # Start the camera
