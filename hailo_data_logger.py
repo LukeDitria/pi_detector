@@ -164,7 +164,7 @@ class HailoLogger():
         # Initialize Hailo and camera
         with Hailo(self.args.model) as hailo:
             self.model_h, self.model_w, *_ = hailo.get_input_shape()
-            logging.info("Input Shape:", self.model_h, self.model_w)
+            logging.info(f"Model input shape HxW: {self.model_h}, {self.model_w}")
             self.hailo_aspect = self.model_w / self.model_h
             detections_run = 0
             no_detections_run = 0
@@ -177,6 +177,7 @@ class HailoLogger():
 
                 # Keep the aspect ratio of the main image in the lo-res image
                 self.lores_w = int(round(self.model_w * (self.video_w / self.video_h)))
+                logging.info(f"Low Res video shape HxW: {self.model_h}, {self.lores_w}")
 
                 if self.args.use_bgr:
                     lores_format = 'BGR888'
