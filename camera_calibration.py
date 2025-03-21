@@ -105,9 +105,8 @@ def camera_calibration():
                 cv2.imshow('Camera Calibration', display_frame)
                 cv2.waitKey(500)  # Pause briefly to show the capture message
 
-        # Display the frame - convert from RGB to BGR for display with OpenCV
-        display_frame_bgr = cv2.cvtColor(display_frame, cv2.COLOR_RGB2BGR)
-        cv2.imshow('Camera Calibration', display_frame_bgr)
+        # Display the frame
+        cv2.imshow('Camera Calibration', display_frame)
 
         # Exit if ESC is pressed
         key = cv2.waitKey(1)
@@ -198,12 +197,8 @@ def test_calibration(mtx, dist, newcameramtx, roi):
         cv2.putText(frame, "Original", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
         cv2.putText(undistorted, "Undistorted", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
-        # Convert from RGB to BGR for display with OpenCV
-        frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-        undistorted_bgr = cv2.cvtColor(undistorted, cv2.COLOR_RGB2BGR)
-
         # Display original and undistorted frames side by side
-        combined = np.hstack((frame_bgr, undistorted_bgr))
+        combined = np.hstack((frame, undistorted))
         cv2.imshow('Calibration Test: Original | Undistorted', combined)
 
         # Process key presses
