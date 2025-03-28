@@ -90,8 +90,8 @@ class BatteryMonitor:
         elif not self.args.operation_time == "all":
             logging.error("operation_time should be day/night/all")
 
-        self.shutdown_time += timedelta(self.args.shutdown_offset)
-        self.startup_time += timedelta(self.args.wakeup_offset)
+        self.shutdown_time += timedelta(hours=self.args.shutdown_offset)
+        self.startup_time += timedelta(hours=self.args.wakeup_offset)
 
         logging.info(f"Shutdown Time {self.shutdown_time.strftime('%Y-%m-%d %H:%M:%S')}")
         logging.info(f"Startup Time {self.startup_time.strftime('%Y-%m-%d %H:%M:%S')}")
