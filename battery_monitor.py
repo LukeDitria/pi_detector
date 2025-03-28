@@ -26,6 +26,10 @@ def parse_arguments():
                         help="Directory to save detection results")
     parser.add_argument("--log_rate_min", type=int, default=5,
                         help="Logging every (x) minutes (default: 5)")
+    parser.add_argument("--shutdown_offset", type=int, default=0,
+                        help="Offset (hours) to add from shutdown time pos/neg")
+    parser.add_argument("--wakeup_offset", type=int, default=0,
+                        help="Offset (hours) to add from wakeup time pos/neg")
     parser.add_argument("--project_id", type=str,
                         help="Google Cloud project ID")
     parser.add_argument("--operation_time", type=str,
@@ -85,6 +89,9 @@ class BatteryMonitor:
 
         elif not self.args.operation_time == "all":
             logging.error("operation_time should be day/night/all")
+
+        self.shutdown_time += timedelta(self.args.shutdown_offset)
+        self.startup_time += timedelta(self.args.wakeup_offset)
 
         logging.info(f"Shutdown Time {self.shutdown_time.strftime('%Y-%m-%d %H:%M:%S')}")
         logging.info(f"Startup Time {self.startup_time.strftime('%Y-%m-%d %H:%M:%S')}")
