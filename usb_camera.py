@@ -144,6 +144,8 @@ class CameraUSB():
 
                 if self.save_video:
                     # Add to circular buffer
+                    if self.frame_buffer.full():
+                        _ = self.frame_buffer.get()
                     self.frame_buffer.put(frame.copy(), block=True, timeout=0.01)
 
                     # Handle recording
