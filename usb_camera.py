@@ -49,6 +49,9 @@ class CameraUSB():
             if self.create_preview:
                 cv2.imshow('frame', main_frame)
 
+            if self.use_bgr:
+                frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
             return main_frame, frame
         else:
             return None, None
