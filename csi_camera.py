@@ -49,11 +49,15 @@ class CameraCSI():
         config = self.picam2.create_video_configuration(main_res, lores=lores, controls=controls)
         self.picam2.configure(config)
 
-        cam_params = utils.get_calibration_params(self.calibration_file,
-                                                  self.video_wh,
-                                                  self.lores_wh)
-        if cam_params:
-            self.picam2.pre_callback = lambda req: utils.correct_image(req, cam_params)
+        if self.calibration_file:
+            self.logger.info(f"Creating calibration params")
+            cam_params = utils.get_calibration_params(self.calibration_file,
+                                                      self.video_wh,
+                                                      self.lores_wh)
+            if cam_params:
+                self.picam2.pre_callback = lambda req: utils.correct_image(req, cam_params)
+            else:
+                self.logger.warning(f"Could not create calibration params!")
 
         if self.create_preview:
             self.picam2.start_preview(Preview.QT, x=0, y=0, width=self.video_wh[0], height=self.video_wh[1])
