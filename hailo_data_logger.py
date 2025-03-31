@@ -200,6 +200,10 @@ class HailoLogger():
 
         seconds_per_frame = 1/self.args.ips
         last_frame_time = time.time()
+
+        logging.info("Wait for startup and battery monitor checks!")
+        time.sleep(30)
+        logging.info("Starting!")
         try:
             while True:
                 # Capture and process frame
@@ -275,8 +279,7 @@ class HailoLogger():
 
 def main():
     logger = HailoLogger()
-    # Wait for startup and battery monitor checks
-    time.sleep(30)
+
     logger.run_detection()
 
 if __name__ == "__main__":
