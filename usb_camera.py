@@ -4,7 +4,7 @@ import signal
 import sys
 import threading
 import time
-from collections import deque
+from queue import Queue
 from datetime import datetime
 import os
 
@@ -45,7 +45,6 @@ class CameraUSB():
         self.current_frame = None
         self.frame_lock = threading.Lock()
         self.recording_lock = threading.Lock()
-        self.buffer_lock = threading.Lock()
 
         # Control flag for the capture thread
         self.running = False
@@ -54,7 +53,7 @@ class CameraUSB():
 
         if self.save_video:
             self.buffer_size = self.buffer_secs * self.fps
-            self.frame_buffer = deque(maxlen=self.buffer_size)
+            self.frame_buffer = Queue(maxsize=self.buffer_size)
 
         self.start()
 
@@ -73,18 +72,25 @@ class CameraUSB():
                 # Create VideoWriter object
                 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
                 self.video_writer = cv2.VideoWriter(filepath, fourcc, self.fps, self.video_wh)
-
-                # Write buffered frames first if requested
-                # TODO make this non-blocking
-                with self.buffer_lock:
-                    buffer_frames = list(self.frame_buffer)
-                    for frame in buffer_frames:
-                        self.video_writer.write(frame)
-                    self.logger.info(f"Added {len(buffer_frames)} buffered frames ({len(buffer_frames) / self.fps:.1f} seconds)")
-
                 self.recording = True
+
+                # Launch a separate thread to write buffer frames
+                buffer_writer_thread = threading.Thread(
+                    target=self._write_buffer_frames,
+                    daemon=True
+                )
+                buffer_writer_thread.start()
         else:
             self.logger.info(f"Not recording! save_video is False!")
+
+    def _write_buffer_frames(self):
+        while True:
+            if self.video_writer is not None:
+                if not self.frame_buffer.empty():
+                    frame = self.frame_buffer.get()
+                    self.video_writer.write(frame)
+            else:
+                break
 
     def stop_video_recording(self):
         if self.recording:
@@ -138,8 +144,7 @@ class CameraUSB():
 
                 if self.save_video:
                     # Add to circular buffer
-                    with self.buffer_lock:
-                        self.frame_buffer.append(frame.copy())
+                    self.frame_buffer.put(frame.copy(), block=True, timeout=0.01)
 
                     # Handle recording
                     if self.recording:
