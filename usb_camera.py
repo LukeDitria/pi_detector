@@ -194,11 +194,17 @@ def main():
     while(camera.cam.isOpened()):
         main_frame, frame = camera.get_frames()
 
-        print(frame.shape)
         if main_frame is None:
             continue
 
         cv2.imshow('frame', frame)
+
+        if camera.recording:
+            cv2.putText(
+                frame, "RECORDING",
+                (frame.shape[1] - 150, 30), cv2.FONT_HERSHEY_SIMPLEX,
+                0.7, (0, 0, 255), 2
+            )
 
         key = cv2.waitKey(1)
         # Is esc key?
