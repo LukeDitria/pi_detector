@@ -207,6 +207,7 @@ def main():
             )
 
         key = cv2.waitKey(1)
+        print(f"got Key {key}")
         # Is esc key?
         if key == ord('q'):
             break
