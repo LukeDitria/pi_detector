@@ -14,6 +14,7 @@ from picamera2.encoders import H264Encoder
 from picamera2.outputs import CircularOutput
 
 import utils
+from csi_camera import CameraCSI
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Hailo object detection on camera stream")
@@ -72,7 +73,6 @@ class HailoLogger():
 
         # First parse command line arguments with all defaults
         self.args = parse_arguments()
-        self.model_h, self.model_w = 640, 640
 
         # Load config file if provided and override CLI args
         if self.args.config_file:
@@ -113,6 +113,10 @@ class HailoLogger():
         self.json_detections_path = os.path.join(self.data_output, "detections")
         os.makedirs(self.json_detections_path, exist_ok=True)
 
+        if self.args.save_video:
+            self.videos_detections_path = os.path.join(self.data_output, "videos")
+            os.makedirs(self.videos_detections_path, exist_ok=True)
+
         # Parse video size
         if isinstance(self.args.video_size, str):
             self.video_w, self.video_h = map(int, self.args.video_size.split(','))
@@ -128,6 +132,17 @@ class HailoLogger():
         else:
             self.valid_classes = None
             logging.info(f"Monitoring all classes")
+
+        self.hailo = Hailo(self.args.model)
+        self.model_h, self.model_w, *_ = self.hailo.get_input_shape()
+        logging.info(f"Model input shape HxW: {self.model_h}, {self.model_w}")
+        self.hailo_aspect = self.model_w / self.model_h
+
+        self.camera = CameraCSI(video_wh=(self.video_w, self.video_h), model_wh=(self.model_w, self.model_h),
+                                fps=self.args.fps, use_bgr=self.args.use_bgr, crop_to_square=self.args.crop_to_square,
+                                calibration_file=self.args.calibration_file, save_video=self.args.save_video,
+                                buffer_secs=self.args.buffer_secs, create_preview=self.args.create_preview,
+                                rotate_img=self.args.rotate_img)
 
     def initialize_cloud_clients(self):
         """Initialize Google Cloud clients."""
@@ -167,127 +182,76 @@ class HailoLogger():
         doc_ref.set(doc_data)
 
     def run_detection(self):
-        # Initialize Hailo and camera
-        with Hailo(self.args.model) as hailo:
-            self.model_h, self.model_w, *_ = hailo.get_input_shape()
-            logging.info(f"Model input shape HxW: {self.model_h}, {self.model_w}")
-            self.hailo_aspect = self.model_w / self.model_h
-            detections_run = 0
-            no_detections_run = 0
+        detections_run = 0
+        no_detections_run = 0
+        encoding = False
 
-            encoding = False
-            logging.info("Capture Box Starting Run!")
-            with Picamera2() as picam2:
-                # Configure camera streams
-                main_res = {'size': (self.video_w, self.video_h), 'format': 'XRGB8888'}
+        try:
+            while True:
+                # Capture and process frame
+                main_frame, frame = self.camera.get_frames()
 
-                if self.args.use_bgr:
-                    lores_format = 'BGR888'
+                results = self.hailo.run(frame)
+
+                # Extract and process detections
+                detections = utils.extract_detections(results, self.class_names, self.valid_classes,
+                                                      self.args.confidence, self.hailo_aspect)
+
+                if detections:
+                    detections_run += 1
+                    no_detections_run = 0
+
+                    # Generate timestamp with only the first 3 digits of the microseconds (milliseconds)
+                    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-3]
+                    filename = f"{timestamp}.jpg"
+
+                    # Save the frame locally
+                    if self.args.save_images:
+                        lores_path = os.path.join(self.image_detections_path, filename)
+                        if self.args.use_bgr:
+                            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        try:
+                            cv2.imwrite(lores_path, frame)
+                        except Exception as e:
+                            logging.info(f"Image saving failed: {e}")
+
+                    try:
+                        # Log detections locally
+                        utils.log_detection(filename, self.json_detections_path, detections)
+                    except Exception as e:
+                        logging.info(f"Local detection logging failed: {e}")
+
+                    # Log detections to Firestore
+                    if self.args.log_remote:
+                        try:
+                            self.log_detection_to_firestore(filename, detections)
+                        except Exception as e:
+                            logging.info(f"Firestore logging failed: {e}")
+
+                    logging.info(f"Detected {len(detections)} objects in {filename}")
+                    for class_name, _, score in detections:
+                        logging.info(f"- {class_name} with confidence {score:.2f}")
                 else:
-                    lores_format = 'RGB888'
+                    no_detections_run += 1
+                    detections_run = 0
 
-                controls = {'FrameRate': self.args.fps}
-
-                # Keep the aspect ratio of the main image in the lo-res image
-                self.lores_w = self.model_w
-                self.lores_h = self.model_h
-                if self.args.crop_to_square:
-                    self.lores_w = int(round(self.model_w * (self.video_w / self.video_h)))
-
-                logging.info(f"Low Res video shape HxW: {self.lores_h}, {self.lores_w}")
-                lores = {'size': (self.lores_w, self.lores_h), 'format': lores_format}
-
-                config = picam2.create_video_configuration(main_res, lores=lores, controls=controls)
-                picam2.configure(config)
-
-                cam_params = utils.get_calibration_params(self.args.calibration_file,
-                                                          (self.video_w, self.video_h),
-                                                          (self.lores_w, self.lores_h))
-                if cam_params:
-                    picam2.pre_callback = lambda req: utils.correct_image(req, cam_params)
-
-                if self.args.create_preview:
-                    picam2.start_preview(Preview.QT, x=0, y=0, width=self.video_w, height=self.video_h)
-
-                picam2.start()
-
+                # Trigger a video recoding event
                 if self.args.save_video:
-                    self.encoder = H264Encoder(1000000, repeat=True)
-                    self.encoder.output = CircularOutput(buffersize=self.args.buffer_secs * self.args.fps)
-                    picam2.start_encoder(self.encoder)
-                    self.videos_detections_path = os.path.join(self.data_output, "videos")
-                    os.makedirs(self.videos_detections_path, exist_ok=True)
+                    if detections_run == self.args.detection_run:
+                        if not encoding:
+                            epoch = int(time.time())
+                            file_name = os.path.join(self.videos_detections_path, f"{epoch}.h264")
+                            self.camera.start_video_recording(file_name)
+                            encoding = True
+                    elif encoding and no_detections_run == self.args.buffer_secs * self.args.fps:
+                            self.camera.stop_video_recording()
+                            encoding = False
 
-                try:
-                    while True:
-                        # Capture and process frame
-                        (main_frame, frame), metadata = picam2.capture_arrays(["main", "lores"])
+        except KeyboardInterrupt:
+            logging.info("\nStopping capture...")
 
-                        # Resize and crop to model size
-                        frame = utils.pre_process_image(frame, rotate=self.args.rotate_img,
-                                                        crop_to_square=self.args.crop_to_square)
-                        results = hailo.run(frame)
-
-                        # Extract and process detections
-                        detections = utils.extract_detections(results, self.class_names, self.valid_classes,
-                                                              self.args.confidence, self.hailo_aspect)
-
-                        if detections:
-                            detections_run += 1
-                            no_detections_run = 0
-
-                            # Generate timestamp with only the first 3 digits of the microseconds (milliseconds)
-                            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-3]
-                            filename = f"{timestamp}.jpg"
-
-                            # Save the frame locally
-                            if self.args.save_images:
-                                lores_path = os.path.join(self.image_detections_path, filename)
-                                if self.args.use_bgr:
-                                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-                                try:
-                                    cv2.imwrite(lores_path, frame)
-                                except Exception as e:
-                                    logging.info(f"Image saving failed: {e}")
-
-                            try:
-                                # Log detections locally
-                                utils.log_detection(filename, self.json_detections_path, detections)
-                            except Exception as e:
-                                logging.info(f"Local detection logging failed: {e}")
-
-                            # Log detections to Firestore
-                            if self.args.log_remote:
-                                try:
-                                    self.log_detection_to_firestore(filename, detections)
-                                except Exception as e:
-                                    logging.info(f"Firestore logging failed: {e}")
-
-                            logging.info(f"Detected {len(detections)} objects in {filename}")
-                            for class_name, _, score in detections:
-                                logging.info(f"- {class_name} with confidence {score:.2f}")
-                        else:
-                            no_detections_run += 1
-                            detections_run = 0
-
-                        if self.args.save_video:
-                            if detections_run == self.args.detection_run:
-                                if not encoding:
-                                    epoch = int(time.time())
-                                    file_name = os.path.join(self.videos_detections_path, f"{epoch}.h264")
-                                    self.encoder.output.fileoutput = file_name
-                                    self.encoder.output.start()
-                                    encoding = True
-                            elif encoding and no_detections_run == self.args.buffer_secs * self.args.fps:
-                                    self.encoder.output.stop()
-                                    encoding = False
-
-                except KeyboardInterrupt:
-                    logging.info("\nStopping capture...")
-
-                finally:
-                    picam2.stop()
+        finally:
+            self.camera.stop_camera()
 
 def main():
     logger = HailoLogger()

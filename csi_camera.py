@@ -25,19 +25,16 @@ class CameraCSI():
         self.create_preview = create_preview
         self.rotate_img = rotate_img
 
+        self.picam2 = Picamera2()
+
         # Configure camera streams
-        main_res = {'size': self.video_wh, 'format': 'XRGB8888'}
-
-        if self.use_bgr:
-            lores_format = 'BGR888'
-        else:
-            lores_format = 'RGB888'
+        # Hailo model needs BGR??
+        lores_format = 'BGR888' if self.use_bgr else 'RGB888'
         self.logger.info(f"Low Res format {lores_format}")
-
-        controls = {'FrameRate': self.fps}
 
         # Keep the aspect ratio of the main image in the lo-res image
         self.lores_wh = self.model_wh
+
         if self.crop_to_square:
             lores_w = int(round(self.model_wh[0] * (self.video_wh[0] / self.video_wh[1])))
             self.lores_wh = (lores_w, self.model_wh[1])
@@ -45,10 +42,12 @@ class CameraCSI():
         logging.info(f"Low Res video shape HxW: {self.lores_wh[1]}, {self.lores_wh[0]}")
         lores = {'size': self.lores_wh, 'format': lores_format}
 
-        self.picam2 = Picamera2()
+        main_res = {'size': self.video_wh, 'format': 'XRGB8888'}
+        controls = {'FrameRate': self.fps}
         config = self.picam2.create_video_configuration(main_res, lores=lores, controls=controls)
         self.picam2.configure(config)
 
+        # Create pre-callback to un-warp image with pre-calculated parameters
         if self.calibration_file:
             self.logger.info(f"Creating calibration params")
             cam_params = utils.get_calibration_params(self.calibration_file,
@@ -95,11 +94,15 @@ class CameraCSI():
         else:
             self.logger.info("Save video is not running!")
 
+    def stop_camera(self):
+        self.picam2.stop()
+        self.picam2.close()
+
 def main():
     camera = CameraCSI(video_wh=(1920,1080), model_wh=(640, 640), fps=30, create_preview=True)
 
     while True :
-        main_frame, frame = camera.get_frames()
+        _, _ = camera.get_frames()
 
 
 if __name__ == "__main__":
