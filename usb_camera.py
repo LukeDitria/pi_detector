@@ -75,6 +75,7 @@ class CameraUSB():
                 self.video_writer = cv2.VideoWriter(filepath, fourcc, self.fps, self.video_wh)
 
                 # Write buffered frames first if requested
+                # TODO make this non-blocking
                 with self.buffer_lock:
                     buffer_frames = list(self.frame_buffer)
                     for frame in buffer_frames:
@@ -92,6 +93,7 @@ class CameraUSB():
                 if self.video_writer is not None:
                     self.video_writer.release()
                     self.video_writer = None
+                    self.logger.info("Stopping recording")
         else:
             self.logger.info(f"Not recording! save_video is False!")
 
@@ -198,26 +200,23 @@ def main():
             continue
 
         cv2.imshow('frame', frame)
-
-        if camera.recording:
-            cv2.putText(
-                frame, "RECORDING",
-                (frame.shape[1] - 150, 30), cv2.FONT_HERSHEY_SIMPLEX,
-                0.7, (0, 0, 255), 2
-            )
-
         key = cv2.waitKey(1)
-        print(f"got Key {key}")
+
+        if key != -1:
+            print(f"got Key {key}")
+
         # Is esc key?
         if key == ord('q'):
             break
 
         # Process key commands
         if key == ord('r') and not camera.recording:
+            print("Start Recording!")
             # Start recording including buffer
             camera.start_video_recording(".")
 
         elif key == ord('s') and camera.recording:
+            print("Stop Recording!")
             # Stop recording
             camera.stop_video_recording()
 
