@@ -129,7 +129,7 @@ class BatteryMonitor:
                 logging.info("Continuing without remote logging")
                 self.firestore_available = False
 
-    def log_battery_to_firestore(self, battery_voltage, status):
+    def log_battery_to_firestore(self, battery_voltage, battery_capacity, status):
         """Log detection results to Firestore."""
         if not self.args.log_remote or not self.firestore_available:
             return
@@ -139,7 +139,9 @@ class BatteryMonitor:
             doc_ref = self.db.collection('battery').document(timestamp)
 
             doc_data = {
+                "timestamp": datetime.now(),
                 "battery_voltage": battery_voltage,
+                "battery_capacity": battery_capacity,
                 "status": status
             }
 
@@ -153,7 +155,7 @@ class BatteryMonitor:
         if not os.path.exists(self.args.log_file_path):
             with open(self.args.log_file_path, 'w', newline='') as f:
                 writer = csv.writer(f)
-                writer.writerow(['Timestamp', 'Voltage', 'Shutdown_Reason'])
+                writer.writerow(['Timestamp', 'Voltage', 'Capacity', 'Shutdown_Reason'])
 
     def read_voltage(self):
         """Read battery voltage"""
@@ -171,18 +173,35 @@ class BatteryMonitor:
             self.battery_monitor_available = False
             return None
 
+    def read_capacity(self):
+        """Read battery capacity"""
+        if not self.battery_monitor_available:
+            return None
+
+        try:
+            read = self.bus.read_word_data(self.address, 4)
+            swapped = struct.unpack("<H", struct.pack(">H", read))[0]
+            capacity = swapped / 256
+            return capacity
+        except Exception as e:
+            logging.info(f"Error reading capacity: {e}")
+            logging.info("Continuing without battery monitoring")
+            self.battery_monitor_available = False
+            return None
+
     def log_data(self, shutdown_reason=None):
         """Log the current battery voltage to CSV file"""
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         voltage = self.read_voltage()
+        capacity = self.read_capacity()
 
         # Always try to log to local file first
         try:
             with open(self.args.log_file_path, 'a', newline='') as f:
                 writer = csv.writer(f)
                 if voltage is not None:
-                    writer.writerow([timestamp, f"{voltage:.2f}", shutdown_reason or "on"])
-                    logging.info(f"Logged: Time: {timestamp}, Voltage: {voltage:.2f}V")
+                    writer.writerow([timestamp, f"{voltage:.2f}", f"{capacity:.2f}", shutdown_reason or "on"])
+                    logging.info(f"Logged: Time: {timestamp}, Voltage: {voltage:.2f}V, Capacity: {capacity:.2f}%")
                 else:
                     writer.writerow([timestamp, "N/A", shutdown_reason or "on (no battery data)"])
                     logging.info(f"Logged: Time: {timestamp}, Voltage: N/A (battery monitor unavailable)")
@@ -193,9 +212,9 @@ class BatteryMonitor:
         if self.args.log_remote and self.firestore_available:
             try:
                 if voltage is not None:
-                    self.log_battery_to_firestore(voltage, shutdown_reason or "on")
+                    self.log_battery_to_firestore(voltage, capacity, shutdown_reason or "on")
                 else:
-                    self.log_battery_to_firestore(None, shutdown_reason or "on (no battery data)")
+                    self.log_battery_to_firestore(None, None, shutdown_reason or "on (no battery data)")
             except Exception as e:
                 logging.info(f"Error during remote logging: {e}")
 
