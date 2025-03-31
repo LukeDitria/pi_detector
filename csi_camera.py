@@ -1,9 +1,11 @@
-import logging
 from picamera2 import Picamera2, Preview
 from picamera2.devices import Hailo
 from picamera2.encoders import H264Encoder
 from picamera2.outputs import CircularOutput
 
+import os
+import logging
+from datetime import datetime
 import utils
 
 class CameraCSI():
@@ -81,9 +83,11 @@ class CameraCSI():
 
         return main_frame, frame
 
-    def start_video_recording(self, filename):
+    def start_video_recording(self, videos_detections_path):
         if self.save_video:
-            self.encoder.output.fileoutput = filename
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            file_name = os.path.join(videos_detections_path, f"{timestamp}.h264")
+            self.encoder.output.fileoutput = file_name
             self.encoder.output.start()
         else:
             self.logger.info("Save video is not running!")

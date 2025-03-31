@@ -257,9 +257,7 @@ class HailoLogger():
                 if self.args.save_video:
                     if detections_run == self.args.detection_run:
                         if not encoding:
-                            epoch = int(time.time())
-                            file_name = os.path.join(self.videos_detections_path, f"{epoch}.h264")
-                            self.camera.start_video_recording(file_name)
+                            self.camera.start_video_recording(self.videos_detections_path)
                             encoding = True
                     elif encoding and no_detections_run == self.args.buffer_secs * self.args.fps:
                             self.camera.stop_video_recording()

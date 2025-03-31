@@ -2,6 +2,11 @@ import logging
 import cv2
 import signal
 import sys
+import threading
+import time
+from collections import deque
+from datetime import datetime
+import os
 
 import utils
 
@@ -36,40 +41,137 @@ class CameraUSB():
             lores_w = int(round(self.model_wh[0] * (self.video_wh[0] / self.video_wh[1])))
             self.lores_wh = (lores_w, self.model_wh[1])
 
-    def get_frames(self):
-        if self.cam.isOpened():
-            ret, main_frame = self.cam.read()
+        # Current frame storage
+        self.current_frame = None
+        self.frame_lock = threading.Lock()
+        self.recording_lock = threading.Lock()
+        self.buffer_lock = threading.Lock()
 
-            frame = cv2.resize(main_frame, self.lores_wh)
+        # Control flag for the capture thread
+        self.running = False
+        self.capture_thread = None
+        self.recording = False
 
-            # Resize and crop to model size
-            frame = utils.pre_process_image(frame, rotate=self.rotate_img,
-                                            crop_to_square=self.crop_to_square)
-
-            if self.create_preview:
-                cv2.imshow('frame', main_frame)
-
-            if self.use_bgr:
-                frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-
-            return main_frame, frame
-        else:
-            return None, None
-
-    def start_video_recording(self, filename):
         if self.save_video:
-            self.logger.info("Save video is not running!")
+            self.buffer_size = self.buffer_secs * self.fps
+            self.frame_buffer = deque(maxlen=self.buffer_size)
+
+        self.start()
+
+    def start_video_recording(self, videos_detections_path):
+        if self.save_video:
+            with self.recording_lock:
+                if self.recording:
+                    self.logger.info("Already recording. Stop current recording first.")
+                    return None
+
+                # Generate filename if not provided
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"recording_{timestamp}.mp4"
+                filepath = os.path.join(videos_detections_path, filename)
+
+                # Create VideoWriter object
+                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                self.video_writer = cv2.VideoWriter(filepath, fourcc, self.fps, self.video_wh)
+
+                # Write buffered frames first if requested
+                with self.buffer_lock:
+                    buffer_frames = list(self.frame_buffer)
+                    for frame in buffer_frames:
+                        self.video_writer.write(frame)
+                    self.logger.info(f"Added {len(buffer_frames)} buffered frames ({len(buffer_frames) / self.fps:.1f} seconds)")
+
+                self.recording = True
         else:
-            self.logger.info("Save video is not running!")
+            self.logger.info(f"Not recording! save_video is False!")
 
     def stop_video_recording(self):
-        if self.save_video:
-            self.logger.info("Save video is not running!")
+        if self.recording:
+            with self.recording_lock:
+                self.recording = False
+                if self.video_writer is not None:
+                    self.video_writer.release()
+                    self.video_writer = None
         else:
-            self.logger.info("Save video is not running!")
+            self.logger.info(f"Not recording! save_video is False!")
+
+    def stop(self):
+        """Stop the camera capture thread."""
+        self.running = False
+        if self.capture_thread and self.capture_thread.is_alive():
+            self.capture_thread.join(timeout=1.0)
+
+    def start(self):
+        """Start the camera capture thread."""
+        if self.running:
+            self.logger.info("Camera capture is already running.")
+            return
+
+        self.running = True
+        self.capture_thread = threading.Thread(target=self._capture_loop)
+        self.capture_thread.daemon = True
+        self.capture_thread.start()
+
+        # Allow time for camera to initialize
+        time.sleep(0.5)
+
+        return self
+
+    def _capture_loop(self):
+        if not self.cam.isOpened():
+            self.running = False
+            return
+
+        try:
+            while self.running:
+                ret, frame = self.cam.read()
+
+                if not ret:
+                    self.logger.warning("Warning: Failed to capture frame")
+                    time.sleep(0.1)
+                    continue
+
+                with self.frame_lock:
+                    self.current_frame = frame
+
+                if self.save_video:
+                    # Add to circular buffer
+                    with self.buffer_lock:
+                        self.frame_buffer.append(frame.copy())
+
+                    # Handle recording
+                    if self.recording:
+                        with self.recording_lock:
+                            self.video_writer.write(frame)
+
+        finally:
+            # Release the camera when done
+            self.cam.release()
+
+    def get_frames(self):
+
+        with self.frame_lock:
+            if self.current_frame is None:
+                return None, None
+            main_frame = self.current_frame.copy()
+
+        frame = cv2.resize(main_frame, self.lores_wh)
+
+        # Resize and crop to model size
+        frame = utils.pre_process_image(frame, rotate=self.rotate_img,
+                                        crop_to_square=self.crop_to_square)
+
+        if self.create_preview:
+            cv2.imshow('frame', main_frame)
+
+        if self.use_bgr:
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
+        return main_frame, frame
 
     def stop_camera(self):
         try:
+            self.stop()
             self.cam.release()
         except Exception as e:
             self.logger.warning("Could not close camera! {e}")
