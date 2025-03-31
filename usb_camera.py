@@ -184,7 +184,7 @@ def signal_handler(sig, frame, cam):
     sys.exit(0)
 
 def main():
-    camera = CameraUSB(create_preview=True, crop_to_square=True)
+    camera = CameraUSB(create_preview=True, crop_to_square=True, save_video=True)
 
     # Register signal handlers for safe termination
     camera_closer = lambda sig, frame: signal_handler(sig, frame, camera)
@@ -200,10 +200,19 @@ def main():
 
         cv2.imshow('frame', frame)
 
-        k = cv2.waitKey(1)
+        key = cv2.waitKey(1)
         # Is esc key?
-        if k == 27:
+        if key == ord('q'):
             break
+
+        # Process key commands
+        if key == ord('r') and not camera.recording:
+            # Start recording including buffer
+            camera.start_video_recording(".")
+
+        elif key == ord('s') and camera.recording:
+            # Stop recording
+            camera.stop_video_recording()
 
     camera.stop_camera()
 
