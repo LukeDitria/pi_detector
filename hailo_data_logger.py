@@ -35,8 +35,10 @@ def parse_arguments():
                         help="Video size as width,height (default: 1920,1080)")
     parser.add_argument("--calibration_file", type=str, default="camera_calibration.pkl",
                         help="Camera calibration/correction parameters")
-    parser.add_argument("--fps", type=int, default=1,
-                        help="Frames per second (default: 1)")
+    parser.add_argument("--fps", type=int, default=30,
+                        help="Frames per second (default: 30)")
+    parser.add_argument("--ips", type=int, default=5,
+                        help="Inferences per second (default: 5)")
     parser.add_argument("--project_id", type=str,
                         help="Google Cloud project ID")
     parser.add_argument("--buffer_secs", type=int, default=3,
@@ -186,6 +188,8 @@ class HailoLogger():
         no_detections_run = 0
         encoding = False
 
+        seconds_per_frame = 1/self.args.ips
+        last_frame_time = time.time()
         try:
             while True:
                 # Capture and process frame
@@ -247,6 +251,12 @@ class HailoLogger():
                             self.camera.stop_video_recording()
                             encoding = False
 
+                # Maintain Inference Rate
+                time_diff = time.time() - last_frame_time
+                wait_time = max(0, seconds_per_frame - time_diff)
+                time.sleep(wait_time)
+                last_frame_time = time.time()
+
         except KeyboardInterrupt:
             logging.info("\nStopping capture...")
 
@@ -256,7 +266,7 @@ class HailoLogger():
 def main():
     logger = HailoLogger()
     # Wait for startup and battery monitor checks
-    time.sleep(5)
+    time.sleep(30)
     logger.run_detection()
 
 if __name__ == "__main__":

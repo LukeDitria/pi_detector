@@ -296,6 +296,7 @@ class BatteryMonitor:
             self.perform_shutdown("Shutdown! Low battery!")
 
     def run_monitor(self):
+        time.sleep(20)
         try:
             logging.info(f"Battery monitoring started. Logging to {self.args.log_file_path}")
 
