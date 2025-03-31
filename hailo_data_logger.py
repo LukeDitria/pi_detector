@@ -14,7 +14,6 @@ from picamera2.encoders import H264Encoder
 from picamera2.outputs import CircularOutput
 
 import utils
-from csi_camera import CameraCSI
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Hailo object detection on camera stream")
@@ -31,6 +30,8 @@ def parse_arguments():
                         help="Rotate/flip the input image: none, cw, ccw, flip")
     parser.add_argument("--confidence", type=float, default=0.5,
                         help="Confidence threshold (default: 0.5)")
+    parser.add_argument("--camera_type", type=str, default="csi",
+                        help="What type of camera to use? csi/usb (default=csi)")
     parser.add_argument("--video_size", type=str, default="1920,1080",
                         help="Video size as width,height (default: 1920,1080)")
     parser.add_argument("--calibration_file", type=str, default="camera_calibration.pkl",
@@ -140,11 +141,20 @@ class HailoLogger():
         logging.info(f"Model input shape HxW: {self.model_h}, {self.model_w}")
         self.hailo_aspect = self.model_w / self.model_h
 
-        self.camera = CameraCSI(video_wh=(self.video_w, self.video_h), model_wh=(self.model_w, self.model_h),
-                                fps=self.args.fps, use_bgr=self.args.use_bgr, crop_to_square=self.args.crop_to_square,
-                                calibration_file=self.args.calibration_file, save_video=self.args.save_video,
-                                buffer_secs=self.args.buffer_secs, create_preview=self.args.create_preview,
-                                rotate_img=self.args.rotate_img)
+        if self.args.camera_type == "csi":
+            from csi_camera import CameraCSI
+            self.camera = CameraCSI(video_wh=(self.video_w, self.video_h), model_wh=(self.model_w, self.model_h),
+                                    fps=self.args.fps, use_bgr=self.args.use_bgr, crop_to_square=self.args.crop_to_square,
+                                    calibration_file=self.args.calibration_file, save_video=self.args.save_video,
+                                    buffer_secs=self.args.buffer_secs, create_preview=self.args.create_preview,
+                                    rotate_img=self.args.rotate_img)
+        elif self.args.camera_type == "usb":
+            from usb_camera import CameraUSB
+            self.camera = CameraUSB(video_wh=(self.video_w, self.video_h), model_wh=(self.model_w, self.model_h),
+                                    fps=self.args.fps, use_bgr=self.args.use_bgr, crop_to_square=self.args.crop_to_square,
+                                    calibration_file=self.args.calibration_file, save_video=self.args.save_video,
+                                    buffer_secs=self.args.buffer_secs, create_preview=self.args.create_preview,
+                                    rotate_img=self.args.rotate_img)
 
     def initialize_cloud_clients(self):
         """Initialize Google Cloud clients."""
