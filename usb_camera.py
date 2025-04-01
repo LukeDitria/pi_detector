@@ -10,8 +10,9 @@ import os
 
 import utils
 
+
 class CameraUSB():
-    def __init__(self, video_wh=(1920,1080), model_wh=(640,640), fps=30, use_bgr=False,
+    def __init__(self, video_wh=(1920, 1080), model_wh=(640, 640), fps=30, use_bgr=False,
                  crop_to_square=False, calibration_file=None, save_video=False, buffer_secs=5,
                  create_preview=False, rotate_img="none"):
 
@@ -50,6 +51,7 @@ class CameraUSB():
         self.running = False
         self.capture_thread = None
         self.recording = False
+        self.video_stop_time = None
 
         if self.save_video:
             self.buffer_size = self.buffer_secs * self.fps
@@ -84,28 +86,37 @@ class CameraUSB():
             self.logger.info(f"Not recording! save_video is False!")
 
     def _write_buffer_frames(self):
-        while True:
+        while self.recording:
             if self.video_writer is not None:
                 if not self.frame_buffer.empty():
-                    frame = self.frame_buffer.get()
-                    self.video_writer.write(frame)
+                    frame_data = self.frame_buffer.get()
+                    self.video_writer.write(frame_data["frame"])
+
+                    # Allow all the frames in the buffer to be added untill the stop time
+                    if self.video_stop_time is not None:
+                        if frame_data["timestamp"] > self.video_stop_time:
+                            self.recording = False
+                            self.video_stop_time = None
             else:
                 break
 
+        if self.video_writer is not None:
+            self.video_writer.release()
+            self.video_writer = None
+            print("Recording Stopped!")
+            self.logger.info("Recording Stopped!")
+
     def stop_video_recording(self):
         if self.recording:
-            with self.recording_lock:
-                self.recording = False
-                if self.video_writer is not None:
-                    self.video_writer.release()
-                    self.video_writer = None
-                    self.logger.info("Stopping recording")
+            self.video_stop_time = time.time()
+            self.logger.info("Stopping recording")
         else:
             self.logger.info(f"Not recording! save_video is False!")
 
     def stop(self):
         """Stop the camera capture thread."""
         self.running = False
+        self.recording = False
         if self.capture_thread and self.capture_thread.is_alive():
             self.capture_thread.join(timeout=1.0)
 
@@ -146,12 +157,10 @@ class CameraUSB():
                     # Add to circular buffer
                     if self.frame_buffer.full():
                         _ = self.frame_buffer.get()
-                    self.frame_buffer.put(frame.copy(), block=True, timeout=0.01)
 
-                    # Handle recording
-                    if self.recording:
-                        with self.recording_lock:
-                            self.video_writer.write(frame)
+                    frame_data = {"frame": frame.copy(), "timestamp": time.time()}
+                    self.frame_buffer.put(frame_data, block=True, timeout=0.01)
+
 
         finally:
             # Release the camera when done
@@ -185,6 +194,7 @@ class CameraUSB():
         except Exception as e:
             self.logger.warning("Could not close camera! {e}")
 
+
 def signal_handler(sig, frame, cam):
     """Handle SIGINT (Ctrl+C) and SIGTERM (kill command) to release camera."""
     print("\nCaught signal, releasing camera...")
@@ -192,15 +202,16 @@ def signal_handler(sig, frame, cam):
     cv2.destroyAllWindows()
     sys.exit(0)
 
+
 def main():
     camera = CameraUSB(create_preview=True, crop_to_square=True, save_video=True)
 
     # Register signal handlers for safe termination
     camera_closer = lambda sig, frame: signal_handler(sig, frame, camera)
-    signal.signal(signal.SIGINT, camera_closer)   # Handle Ctrl+C
+    signal.signal(signal.SIGINT, camera_closer)  # Handle Ctrl+C
     signal.signal(signal.SIGTERM, camera_closer)  # Handle `kill` command
 
-    while(camera.cam.isOpened()):
+    while (camera.cam.isOpened()):
         main_frame, frame = camera.get_frames()
 
         if main_frame is None:
