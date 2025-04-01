@@ -7,7 +7,6 @@ import csv
 import os
 import subprocess
 import logging
-import sys
 
 from astral import LocationInfo
 from astral.sun import sun
@@ -67,8 +66,11 @@ class BatteryMonitor:
         self.timezone = pytz.timezone(self.location.timezone)
         self.ensure_log_file_exists()
 
+        self.sleep_wake = False
+
         now = datetime.now(self.timezone)
         if self.args.operation_time == "day":
+            self.sleep_wake = True
             s = sun(self.location.observer, date=now)
             self.shutdown_time = s["sunset"]
             next_day = now + timedelta(days=1)
@@ -76,6 +78,7 @@ class BatteryMonitor:
             self.startup_time = next_s["sunrise"]
 
         elif self.args.operation_time == "night":
+            self.sleep_wake = True
             # If the device has woken up after midnight
             if now.hour < 12:
                 days_delta = 0
@@ -87,14 +90,20 @@ class BatteryMonitor:
             self.shutdown_time = next_s["sunrise"]
             self.startup_time = next_s["sunset"]
 
-        elif not self.args.operation_time == "all":
+        elif self.args.operation_time == "all":
+            self.shutdown_time = None
+            self.startup_time = None
+        else:
             logging.error("operation_time should be day/night/all")
 
-        self.shutdown_time += timedelta(hours=self.args.shutdown_offset)
-        self.startup_time += timedelta(hours=self.args.wakeup_offset)
+        if self.sleep_wake:
+            self.shutdown_time += timedelta(hours=self.args.shutdown_offset)
+            self.startup_time += timedelta(hours=self.args.wakeup_offset)
 
-        logging.info(f"Shutdown Time {self.shutdown_time.strftime('%Y-%m-%d %H:%M:%S')}")
-        logging.info(f"Startup Time {self.startup_time.strftime('%Y-%m-%d %H:%M:%S')}")
+            logging.info(f"Shutdown Time {self.shutdown_time.strftime('%Y-%m-%d %H:%M:%S')}")
+            logging.info(f"Startup Time {self.startup_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        else:
+            logging.info(f"ALWAYS ON!")
 
         # Try to initialize the battery monitor
         try:
@@ -277,7 +286,7 @@ class BatteryMonitor:
     def check_shutdown_condition(self):
         """Check if it's after sunset or if battery voltage is critically low"""
         # Shutdown if after sunset
-        if not self.args.operation_time == 'all':
+        if self.sleep_wake:
             if self.check_shutdown_time():
                 self.set_alarm(self.startup_time)
                 self.perform_shutdown("Shutdown! After sunset!")
