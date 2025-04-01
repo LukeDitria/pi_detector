@@ -46,7 +46,8 @@ def parse_arguments():
                         help="The Circular buffer size in seconds (default: 3)")
     parser.add_argument("--detection_run", type=int, default=5,
                         help="Number of detections before recording (default: 5)")
-
+    parser.add_argument("--start_delay", type=int, default=30,
+                        help="Delay before running stream (default: 30)")
     parser.add_argument("--log_remote", action='store_true', help="Log to remote store")
     parser.add_argument("--create_preview", action='store_true', help="Display the camera output")
     parser.add_argument("--save_video", action='store_true', help="Save video clips of detections")
@@ -202,7 +203,7 @@ class HailoLogger():
         last_frame_time = time.time()
 
         logging.info("Wait for startup and battery monitor checks!")
-        time.sleep(30)
+        time.sleep(self.args.start_delay)
         logging.info("Starting!")
         try:
             while True:
@@ -259,7 +260,7 @@ class HailoLogger():
                         if not encoding:
                             self.camera.start_video_recording(self.videos_detections_path)
                             encoding = True
-                    elif encoding and no_detections_run == self.args.buffer_secs * self.args.fps:
+                    elif encoding and no_detections_run == self.args.buffer_secs * self.args.ips:
                             self.camera.stop_video_recording()
                             encoding = False
 
