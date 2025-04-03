@@ -27,10 +27,10 @@ def parse_arguments():
     parser.add_argument("--valid_classes", type=str,
                         help="Path to text file containing list of valid class names to detect")
     parser.add_argument("--rotate_img", type=str, default="none",
-                        help="Rotate/flip the input image: none, cw, ccw, flip")
+                        help="Rotate/flip the input image: none, cw, ccw, flip", choices=["none", "cw", "ccw", "flip"])
     parser.add_argument("--confidence", type=float, default=0.5,
                         help="Confidence threshold (default: 0.5)")
-    parser.add_argument("--camera_type", type=str, default="csi",
+    parser.add_argument("--camera_type", type=str, default="csi", choices=["csi", "usb"],
                         help="What type of camera to use? csi/usb (default=csi)")
     parser.add_argument("--video_size", type=str, default="1920,1080",
                         help="Video size as width,height (default: 1920,1080)")

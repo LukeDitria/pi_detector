@@ -34,7 +34,8 @@ def parse_arguments():
     parser.add_argument("--project_id", type=str,
                         help="Google Cloud project ID")
     parser.add_argument("--operation_time", type=str,
-                        help="When the device will operate: day, night, all", default='day')
+                        help="When the device will operate: day, night, all", default='all',
+                        choices=["day", "night", "all"])
     parser.add_argument("--low_battery_voltage", type=float, default=3.2,
                         help="Battery Voltage to shutdown at")
     parser.add_argument("--log_remote", action='store_true', help="Log to remote store")
