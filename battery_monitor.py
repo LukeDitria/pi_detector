@@ -7,6 +7,7 @@ import csv
 import os
 import subprocess
 import logging
+import json
 
 from astral import LocationInfo
 from astral.sun import sun
@@ -21,6 +22,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description="Raspi Battery monitor")
     parser.add_argument("--log_file_path", type=str, default="battery_logs.csv",
                         help="Directory to save detection results")
+    parser.add_argument("--config_file", type=str, help="Path to JSON configuration file")
     parser.add_argument("--device_location", type=str, default="Melbourne",
                         help="Directory to save detection results")
     parser.add_argument("--log_rate_min", type=int, default=5,
@@ -53,6 +55,22 @@ class BatteryMonitor:
         logging.info("Capture Box Awake!")
 
         self.args = parse_arguments()
+
+        # Load config file if provided and override CLI args
+        if self.args.config_file:
+            try:
+                with open(self.args.config_file, 'r') as f:
+                    config = json.load(f)
+
+                # Override CLI args with JSON config values
+                for key, value in config.items():
+                    if hasattr(self.args, key):
+                        setattr(self.args, key, value)
+
+                logging.info(f"Loaded configuration from {self.args.config_file}")
+            except Exception as e:
+                logging.info(f"Error loading config file: {e}")
+                logging.info("Using command line arguments instead")
 
         self.battery_monitor_available = True
         self.firestore_available = False
