@@ -212,8 +212,9 @@ def main():
                         help="Frames per second (default: 30)")
 
     args=parser.parse_args()
+    video_w, video_h = map(int, args.video_size.split(','))
 
-    camera = CameraUSB(create_preview=True, save_video=True, video_wh=args.video_size, fps=args.fps)
+    camera = CameraUSB(create_preview=True, save_video=True, video_wh=(video_w, video_h), fps=args.fps)
 
     # Register signal handlers for safe termination
     camera_closer = lambda sig, frame: signal_handler(sig, frame, camera)
