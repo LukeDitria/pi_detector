@@ -7,6 +7,7 @@ import time
 from queue import Queue
 from datetime import datetime
 import os
+import argparse
 
 import utils
 
@@ -204,7 +205,15 @@ def signal_handler(sig, frame, cam):
 
 
 def main():
-    camera = CameraUSB(create_preview=True, crop_to_square=True, save_video=True)
+    parser = argparse.ArgumentParser(description="USB Camera Test")
+    parser.add_argument("--video_size", type=str, default="1920,1080",
+                        help="Video size as width,height (default: 1920,1080)")
+    parser.add_argument("--fps", type=int, default=30,
+                        help="Frames per second (default: 30)")
+
+    args=parser.parse_args()
+
+    camera = CameraUSB(create_preview=True, save_video=True, video_wh=args.video_size, fps=args.fps)
 
     # Register signal handlers for safe termination
     camera_closer = lambda sig, frame: signal_handler(sig, frame, camera)
