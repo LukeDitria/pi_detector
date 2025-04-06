@@ -14,6 +14,7 @@ from picamera2.encoders import H264Encoder
 from picamera2.outputs import CircularOutput
 
 import utils
+from hailo_yolo import HailoYolo
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Hailo object detection on camera stream")
@@ -137,21 +138,19 @@ class HailoLogger():
             self.valid_classes = None
             logging.info(f"Monitoring all classes")
 
-        self.hailo = Hailo(self.args.model)
-        self.model_h, self.model_w, *_ = self.hailo.get_input_shape()
-        logging.info(f"Model input shape HxW: {self.model_h}, {self.model_w}")
-        self.hailo_aspect = self.model_w / self.model_h
+        self.detector = HailoYolo(model_path=self.args.model, class_names=self.args.class_names,
+                                  valid_classes=self.args.valid_classes, confidence=self.args.confidence)
 
         if self.args.camera_type == "csi":
             from csi_camera import CameraCSI
-            self.camera = CameraCSI(video_wh=(self.video_w, self.video_h), model_wh=(self.model_w, self.model_h),
+            self.camera = CameraCSI(video_wh=(self.video_w, self.video_h), model_wh=self.detector.model_wh,
                                     fps=self.args.fps, use_bgr=self.args.use_bgr, crop_to_square=self.args.crop_to_square,
                                     calibration_file=self.args.calibration_file, save_video=self.args.save_video,
                                     buffer_secs=self.args.buffer_secs, create_preview=self.args.create_preview,
                                     rotate_img=self.args.rotate_img)
         elif self.args.camera_type == "usb":
             from usb_camera import CameraUSB
-            self.camera = CameraUSB(video_wh=(self.video_w, self.video_h), model_wh=(self.model_w, self.model_h),
+            self.camera = CameraUSB(video_wh=(self.video_w, self.video_h), model_wh=self.detector.model_wh,
                                     fps=self.args.fps, use_bgr=self.args.use_bgr, crop_to_square=self.args.crop_to_square,
                                     calibration_file=self.args.calibration_file, save_video=self.args.save_video,
                                     buffer_secs=self.args.buffer_secs, create_preview=self.args.create_preview,
@@ -213,8 +212,7 @@ class HailoLogger():
                 results = self.hailo.run(frame)
 
                 # Extract and process detections
-                detections = utils.extract_detections(results, self.class_names, self.valid_classes,
-                                                      self.args.confidence, self.hailo_aspect)
+                detections = self.detector.get_detections(results)
 
                 if detections:
                     detections_run += 1
