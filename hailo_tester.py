@@ -29,7 +29,8 @@ def parse_arguments():
                         help="Path for the HEF model")
     parser.add_argument("--labels", type=str, default="coco.txt",
                         help="Path to a text file containing labels")
-
+    parser.add_argument("--valid_classes", type=str,
+                        help="Path to text file containing list of valid class names to detect")
     parser.add_argument("--confidence", type=float, default=0.5,
                         help="Confidence threshold (default: 0.5)")
     parser.add_argument("--use_bgr", action='store_true',
@@ -87,8 +88,8 @@ class HailoTester():
             self.valid_classes = None
             logging.info(f"Monitoring all classes")
 
-        self.detector = HailoYolo(model_path=self.args.model, class_names=self.args.class_names,
-                                  valid_classes=self.args.valid_classes, confidence=self.args.confidence)
+        self.detector = HailoYolo(model_path=self.args.model, class_names=self.class_names,
+                                  valid_classes=self.valid_classes, confidence=self.args.confidence)
 
         if self.args.image_dir:
             from media_processor import ImageProcessor
@@ -96,18 +97,26 @@ class HailoTester():
                                                crop_to_square=self.args.crop_to_square)
         elif self.args.video_path:
             from media_processor import VideoProcessor
-            self.image_source = VideoProcessor(path=self.args.image_dir, image_wh=self.detector.model_wh,
+            self.image_source = VideoProcessor(path=self.args.video_path, image_wh=self.detector.model_wh,
                                                crop_to_square=self.args.crop_to_square)
+        else:
+            ValueError("You must provide a video path or image dir!")
 
     def draw_detections(self, detections, frame):
         for detection in detections:
-            x, y, w, h = detection[1]
+            x0, y0, x1, y1 = detection[1]
+
+            x0 = int(x0 * frame.shape[1])
+            y0 = int(y0 * frame.shape[0])
+            x1 = int(x1 * frame.shape[1])
+            y1 = int(y1 * frame.shape[0])
+
             label = f"{detection[0]} ({detection[2]:.2f})"
 
             # Calculate text size and position
             (text_width, text_height), baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
-            text_x = x + 5
-            text_y = y + 15
+            text_x = int(x0 + 5)
+            text_y = int(y0 + 15)
 
             # Draw the background rectangle on the overlay
             cv2.rectangle(frame,
@@ -121,7 +130,7 @@ class HailoTester():
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
 
             # Draw detection box
-            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0, 0), thickness=2)
+            cv2.rectangle(frame, (x0, y0), (x1, y1), (0, 255, 0, 0), thickness=2)
 
             return frame
 
@@ -137,11 +146,12 @@ class HailoTester():
             frame = self.draw_detections(detections, frame)
 
             if detections:
-                filename = f"{frame_counter:%5d}.jpg"
+                filename = f"{frame_counter}.jpg"
 
                 lores_path = os.path.join(self.image_detections_path, filename)
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 cv2.imwrite(lores_path, frame)
+                frame_counter += 1
 
 def main():
     logger = HailoTester()

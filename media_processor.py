@@ -118,19 +118,3 @@ class ImageProcessor:
                         yield frame
                 except Exception as e:
                     print(f"Error reading image {file_path}: {e}")
-
-# Example usage:
-#
-# # Process images in a directory
-# img_processor = MediaProcessor('/path/to/images')
-# for img_path, img in img_processor.get_images():
-#     # Do something with each image
-#     print(f"Processing image: {img_path}, shape: {img.shape}")
-#
-# # Process frames from a video
-# video_processor = MediaProcessor('/path/to/video.mp4')
-# info = video_processor.get_video_info()
-# print(f"Video info: {info}")
-# for frame_num, frame in video_processor.get_frames(max_frames=100):
-#     # Do something with each frame
-#     print(f"Processing frame {frame_num}, shape: {frame.shape}")

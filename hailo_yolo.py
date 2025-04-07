@@ -16,7 +16,7 @@ class HailoYolo():
         self.hailo_aspect = model_w / model_h
 
         self.logger.info("Model initialized!")
-        self.logging.info(f"Model input shape HxW: {model_h}, {model_w}")
+        self.logger.info(f"Model input shape HxW: {model_h}, {model_w}")
 
     def extract_detections(self, hailo_output):
         """Extract detections from the HailoRT-postprocess output."""
