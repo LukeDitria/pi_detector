@@ -138,8 +138,8 @@ class HailoLogger():
             self.valid_classes = None
             logging.info(f"Monitoring all classes")
 
-        self.detector = HailoYolo(model_path=self.args.model, class_names=self.args.class_names,
-                                  valid_classes=self.args.valid_classes, confidence=self.args.confidence)
+        self.detector = HailoYolo(model_path=self.args.model, class_names=self.class_names,
+                                  valid_classes=self.valid_classes, confidence=self.args.confidence)
 
         if self.args.camera_type == "csi":
             from csi_camera import CameraCSI
@@ -209,10 +209,8 @@ class HailoLogger():
                 # Capture and process frame
                 main_frame, frame = self.camera.get_frames()
 
-                results = self.hailo.run(frame)
-
                 # Extract and process detections
-                detections = self.detector.get_detections(results)
+                detections = self.detector.get_detections(frame)
 
                 if detections:
                     detections_run += 1
