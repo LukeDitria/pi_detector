@@ -1,5 +1,4 @@
 from picamera2 import Picamera2, Preview
-from picamera2.devices import Hailo
 from picamera2.encoders import H264Encoder
 from picamera2.outputs import CircularOutput
 
