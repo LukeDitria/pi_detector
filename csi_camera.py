@@ -83,7 +83,7 @@ class CameraCSI():
         (main_frame, frame), metadata = self.picam2.capture_arrays(["main", "lores"])
 
         if self.is_pi5:
-            if self.use_bgr:
+            if not self.use_bgr:
                 frame = cv2.cvtColor(frame, cv2.COLOR_YUV420p2BGR)
             else:
                 frame = cv2.cvtColor(frame, cv2.COLOR_YUV420p2RGB)
