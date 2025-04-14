@@ -96,6 +96,7 @@ class CameraCSI():
 
     def start_video_recording(self, videos_detections_path):
         if self.save_video:
+            self.logger.info("Starting Video recording!")
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             file_name = os.path.join(videos_detections_path, f"{timestamp}.h264")
             self.encoder.output.fileoutput = file_name
@@ -105,6 +106,7 @@ class CameraCSI():
 
     def stop_video_recording(self):
         if self.save_video:
+            self.logger.info("Stoping Video recording!")
             self.encoder.output.stop()
         else:
             self.logger.info("Save video is not running!")
