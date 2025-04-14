@@ -168,7 +168,7 @@ def convert_h264_to_mp4(input_path, output_path, framerate=30):
         output_path
     ]
     try:
-        subprocess.run(command, check=True)
+        subprocess.Popen(command, check=True)
         print(f"Converted {input_path} to {output_path}")
     except subprocess.CalledProcessError as e:
         print(f"FFmpeg failed: {e}")
