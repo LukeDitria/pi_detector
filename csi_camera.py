@@ -30,6 +30,7 @@ class CameraCSI():
         self.buffer_secs = buffer_secs
         self.create_preview = create_preview
         self.rotate_img = rotate_img
+        self.video_file_name = None
 
         self.picam2 = Picamera2()
 
@@ -99,8 +100,8 @@ class CameraCSI():
         if self.save_video:
             self.logger.info("Starting Video recording!")
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            file_name = os.path.join(videos_detections_path, f"{self.device_name}_{timestamp}.h264")
-            self.output.fileoutput = file_name
+            self.video_file_name = os.path.join(videos_detections_path, f"{self.device_name}_{timestamp}.h264")
+            self.output.fileoutput = self.video_file_name
             self.output.start()
         else:
             self.logger.info("Save video is not running!")
@@ -110,8 +111,8 @@ class CameraCSI():
             self.logger.info("Stoping Video recording!")
             self.output.stop()
             if self.convert_h264:
-                new_file_name = self.output.fileoutput.split(".")[0] + ".mp4"
-                utils.convert_h264_to_mp4(self.output.fileoutput, new_file_name, self.fps)
+                new_file_name = self.video_file_name.split(".")[0] + ".mp4"
+                utils.convert_h264_to_mp4(self.video_file_name, new_file_name, self.fps)
         else:
             self.logger.info("Save video is not running!")
 
