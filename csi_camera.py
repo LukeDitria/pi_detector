@@ -11,7 +11,7 @@ import utils
 class CameraCSI():
     def __init__(self, device_name, video_wh=(1920,1080), model_wh=(640, 640), fps=5, use_bgr=False, is_pi5=False,
                  crop_to_square=False, calibration_file=None, save_video=False, buffer_secs=5,
-                 create_preview=False, rotate_img="none"):
+                 create_preview=False, rotate_img="none", convert_h264=False):
 
         self.logger = logging.getLogger(__name__)
         self.logger.info("Camera initialized!")
@@ -22,6 +22,7 @@ class CameraCSI():
         self.fps = fps
         self.use_bgr = use_bgr
         self.is_pi5 = is_pi5
+        self.convert_h264 = convert_h264
 
         self.crop_to_square = crop_to_square
         self.calibration_file = calibration_file
@@ -108,6 +109,9 @@ class CameraCSI():
         if self.save_video:
             self.logger.info("Stoping Video recording!")
             self.output.stop()
+            if self.convert_h264:
+                new_file_name = self.output.fileoutput.split(".")[0] + ".mp4"
+                utils.convert_h264_to_mp4(self.output.fileoutput, new_file_name, self.fps)
         else:
             self.logger.info("Save video is not running!")
 

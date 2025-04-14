@@ -4,6 +4,7 @@ import os
 import pickle
 from picamera2 import Picamera2
 from picamera2 import MappedArray, Preview
+import subprocess
 
 
 def read_class_list(filepath):
@@ -157,3 +158,17 @@ def parse_resolution(image_size):
         video_w, video_h = image_size
 
     return video_w, video_h
+
+def convert_h264_to_mp4(input_path, output_path, framerate=30):
+    command = [
+        'ffmpeg',
+        '-framerate', str(framerate),
+        '-i', input_path,
+        '-c', 'copy',
+        output_path
+    ]
+    try:
+        subprocess.run(command, check=True)
+        print(f"Converted {input_path} to {output_path}")
+    except subprocess.CalledProcessError as e:
+        print(f"FFmpeg failed: {e}")

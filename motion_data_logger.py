@@ -68,7 +68,8 @@ def parse_arguments():
                         help="Use BGR image not RGB")
     parser.add_argument("--crop_to_square", action='store_true',
                         help="Crop the input frame to be square")
-
+    parser.add_argument("--convert_h264", action='store_true',
+                        help="Convert the saved h264 video to mp4")
     return parser.parse_args()
 
 
@@ -141,7 +142,7 @@ class PixelMotionLogger():
                                     crop_to_square=self.args.crop_to_square,
                                     calibration_file=self.args.calibration_file, save_video=self.args.save_video,
                                     buffer_secs=self.args.buffer_secs, create_preview=self.args.create_preview,
-                                    rotate_img=self.args.rotate_img)
+                                    rotate_img=self.args.rotate_img, convert_h264=self.args.convert_h264)
         elif self.args.camera_type == "usb":
             from usb_camera import CameraUSB
             self.camera = CameraUSB(device_name=self.args.device_name, video_wh=(self.video_w, self.video_h),
