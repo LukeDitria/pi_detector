@@ -147,3 +147,13 @@ def get_calibration_params(calibration_file, main_wh, lores_wh):
         return cam_params
     else:
         return None
+
+def parse_resolution(image_size):
+    # Parse video size
+    if isinstance(image_size, str):
+        video_w, video_h = map(int, image_size.split(','))
+    else:
+        # Handle case where video_size might be a list/tuple in the JSON
+        video_w, video_h = image_size
+
+    return video_w, video_h
