@@ -20,44 +20,36 @@ def parse_arguments():
     parser.add_argument("--output_dir", type=str, default="output",
                         help="Directory to save detection results")
 
-    parser.add_argument("--rotate_img", type=str, default="none",
-                        help="Rotate/flip the input image: none, cw, ccw, flip", choices=["none", "cw", "ccw", "flip"])
     parser.add_argument("--threshold", type=int, default=25,
                         help="Pixel difference threshold (default: 25)")
     parser.add_argument("--motion_percent", type=float, default=0.25,
                         help="Percent of image to change to trigger event (default: 0.25)")
+
     parser.add_argument("--camera_type", type=str, default="csi", choices=["csi", "usb"],
                         help="What type of camera to use? csi/usb (default=csi)")
-
     parser.add_argument("--video_size", type=int, nargs='+', default=(1920, 1080),
                         help="Video size as width,height (default: 1920,1080)")
     parser.add_argument("--frame_size", type=int, nargs='+', default=(480, 270),
                         help="Width/Height of the image frame to be processed to detect motion (default: 480,270)")
     parser.add_argument("--calibration_file", type=str, default="camera_calibration.pkl",
-
                         help="Camera calibration/correction parameters")
+    parser.add_argument("--rotate_img", type=str, default="none",
+                        help="Rotate/flip the input image: none, cw, ccw, flip", choices=["none", "cw", "ccw", "flip"])
 
     parser.add_argument("--fps", type=int, default=30,
                         help="Frames per second (default: 30)")
-
     parser.add_argument("--ips", type=int, default=5,
                         help="Inferences per second (default: 5)")
 
     parser.add_argument("--project_id", type=str,
                         help="Google Cloud project ID")
-
     parser.add_argument("--firestore_collection", type=str, default="CameraBox",
                         help="This project name to be stored on Firestore")
 
     parser.add_argument("--buffer_secs", type=int, default=3,
                         help="The Circular buffer size in seconds (default: 3)")
-
-    parser.add_argument("--buffer_secs", type=int, default=3,
-                        help="The Circular buffer size in seconds (default: 3)")
-
     parser.add_argument("--detection_run", type=int, default=5,
                         help="Number of detections before recording (default: 5)")
-
     parser.add_argument("--start_delay", type=int, default=30,
                         help="Delay before running stream (default: 30)")
 
@@ -75,7 +67,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-class HailoLogger():
+class MotionLogger():
     def __init__(self):
         # Set up logging to stdout (systemd will handle redirection)
         logging.basicConfig(
@@ -283,7 +275,7 @@ class HailoLogger():
             self.camera.stop_camera()
 
 def main():
-    logger = HailoLogger()
+    logger = MotionLogger()
 
     logger.run_detection()
 
