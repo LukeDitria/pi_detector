@@ -21,16 +21,20 @@ def parse_arguments():
     parser.add_argument("--config_file", type=str, help="Path to JSON configuration file")
     parser.add_argument("--output_dir", type=str, default="output",
                         help="Directory to save detection results")
+    parser.add_argument("--start_delay", type=int, default=30,
+                        help="Delay before running stream (default: 30)")
+    parser.add_argument("--device_name", type=str, default="site1",
+                        help="The name of this device to be used when saving data")
+
     parser.add_argument("--model", type=str, default="/usr/share/hailo-models/yolov8s_h8.hef",
                         help="Path for the HEF model")
     parser.add_argument("--labels", type=str, default="coco.txt",
                         help="Path to a text file containing labels")
     parser.add_argument("--valid_classes", type=str,
                         help="Path to text file containing list of valid class names to detect")
-    parser.add_argument("--rotate_img", type=str, default="none",
-                        help="Rotate/flip the input image: none, cw, ccw, flip", choices=["none", "cw", "ccw", "flip"])
     parser.add_argument("--confidence", type=float, default=0.5,
                         help="Confidence threshold (default: 0.5)")
+
     parser.add_argument("--camera_type", type=str, default="csi", choices=["csi", "usb"],
                         help="What type of camera to use? csi/usb (default=csi)")
     parser.add_argument("--video_size", type=str, default="1920,1080",
@@ -41,16 +45,19 @@ def parse_arguments():
                         help="Frames per second (default: 30)")
     parser.add_argument("--ips", type=int, default=5,
                         help="Inferences per second (default: 5)")
+    parser.add_argument("--rotate_img", type=str, default="none",
+                        help="Rotate/flip the input image: none, cw, ccw, flip", choices=["none", "cw", "ccw", "flip"])
+
     parser.add_argument("--project_id", type=str,
                         help="Google Cloud project ID")
     parser.add_argument("--firestore_collection", type=str, default="CameraBox",
                         help="This project name to be stored on Firestore")
+
     parser.add_argument("--buffer_secs", type=int, default=3,
                         help="The Circular buffer size in seconds (default: 3)")
     parser.add_argument("--detection_run", type=int, default=5,
                         help="Number of detections before recording (default: 5)")
-    parser.add_argument("--start_delay", type=int, default=30,
-                        help="Delay before running stream (default: 30)")
+
     parser.add_argument("--log_remote", action='store_true', help="Log to remote store")
     parser.add_argument("--create_preview", action='store_true', help="Display the camera output")
     parser.add_argument("--save_video", action='store_true', help="Save video clips of detections")
@@ -145,15 +152,17 @@ class HailoLogger():
 
         if self.args.camera_type == "csi":
             from csi_camera import CameraCSI
-            self.camera = CameraCSI(video_wh=(self.video_w, self.video_h), model_wh=self.detector.model_wh,
-                                    fps=self.args.fps, use_bgr=self.args.use_bgr, crop_to_square=self.args.crop_to_square,
+            self.camera = CameraCSI(device_name=self.args.device_name, video_wh=(self.video_w, self.video_h),
+                                    model_wh=self.detector.model_wh, fps=self.args.fps, use_bgr=self.args.use_bgr,
+                                    crop_to_square=self.args.crop_to_square,
                                     calibration_file=self.args.calibration_file, save_video=self.args.save_video,
                                     buffer_secs=self.args.buffer_secs, create_preview=self.args.create_preview,
                                     rotate_img=self.args.rotate_img)
         elif self.args.camera_type == "usb":
             from usb_camera import CameraUSB
-            self.camera = CameraUSB(video_wh=(self.video_w, self.video_h), model_wh=self.detector.model_wh,
-                                    fps=self.args.fps, use_bgr=self.args.use_bgr, crop_to_square=self.args.crop_to_square,
+            self.camera = CameraUSB(device_name=self.args.device_name, video_wh=(self.video_w, self.video_h),
+                                    model_wh=self.detector.model_wh, fps=self.args.fps, use_bgr=self.args.use_bgr,
+                                    crop_to_square=self.args.crop_to_square,
                                     calibration_file=self.args.calibration_file, save_video=self.args.save_video,
                                     buffer_secs=self.args.buffer_secs, create_preview=self.args.create_preview,
                                     rotate_img=self.args.rotate_img)
@@ -225,7 +234,7 @@ class HailoLogger():
 
                     # Generate timestamp with only the first 3 digits of the microseconds (milliseconds)
                     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-3]
-                    filename = f"{timestamp}.jpg"
+                    filename = f"{self.args.device_name}_{timestamp}.jpg"
 
                     # Save the frame locally
                     if self.args.save_images:

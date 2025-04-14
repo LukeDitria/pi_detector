@@ -13,13 +13,14 @@ import utils
 
 
 class CameraUSB():
-    def __init__(self, video_wh=(1920, 1080), model_wh=(640, 640), fps=30, use_bgr=False,
+    def __init__(self, device_name, video_wh=(1920, 1080), model_wh=(640, 640), fps=30, use_bgr=False,
                  crop_to_square=False, calibration_file=None, save_video=False, buffer_secs=5,
                  create_preview=False, rotate_img="none"):
 
         self.logger = logging.getLogger(__name__)
         self.logger.info("Camera initialized!")
 
+        self.device_name = device_name
         self.video_wh = video_wh
         self.model_wh = model_wh
         self.fps = fps
@@ -69,7 +70,7 @@ class CameraUSB():
 
                 # Generate filename if not provided
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"recording_{timestamp}.mp4"
+                filename = f"{self.device_name}_{timestamp}.mp4"
                 filepath = os.path.join(videos_detections_path, filename)
 
                 # Create VideoWriter object

@@ -9,13 +9,14 @@ from datetime import datetime
 import utils
 
 class CameraCSI():
-    def __init__(self, video_wh=(1920,1080), model_wh=(640, 640), fps=5, use_bgr=False, is_pi5=False,
+    def __init__(self, device_name, video_wh=(1920,1080), model_wh=(640, 640), fps=5, use_bgr=False, is_pi5=False,
                  crop_to_square=False, calibration_file=None, save_video=False, buffer_secs=5,
                  create_preview=False, rotate_img="none"):
 
         self.logger = logging.getLogger(__name__)
         self.logger.info("Camera initialized!")
 
+        self.device_name = device_name
         self.video_wh = video_wh
         self.model_wh = model_wh
         self.fps = fps
@@ -77,7 +78,6 @@ class CameraCSI():
             self.picam2.start_recording(self.encoder, self.output, quality=Quality.HIGH)
             self.logger.info(f"Saving Video")
 
-
     def get_frames(self):
         # Capture and process frame
         (main_frame, frame), metadata = self.picam2.capture_arrays(["main", "lores"])
@@ -98,7 +98,7 @@ class CameraCSI():
         if self.save_video:
             self.logger.info("Starting Video recording!")
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            file_name = os.path.join(videos_detections_path, f"{timestamp}.h264")
+            file_name = os.path.join(videos_detections_path, f"{self.device_name}_{timestamp}.h264")
             self.output.fileoutput = file_name
             self.output.start()
         else:

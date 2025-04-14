@@ -15,6 +15,8 @@ def parse_arguments():
     parser.add_argument("--config_file", type=str, help="Path to JSON configuration file")
     parser.add_argument("--output_dir", type=str, default="output",
                         help="Directory to save detection results")
+    parser.add_argument("--device_name", type=str, default="site1",
+                        help="The name of this device to be used when saving data")
 
     parser.add_argument("--rotate_img", type=str, default="none",
                         help="Rotate/flip the input image: none, cw, ccw, flip", choices=["none", "cw", "ccw", "flip"])
@@ -70,7 +72,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-class HailoLogger():
+class PixelMotionLogger():
     def __init__(self):
         # Set up logging to stdout (systemd will handle redirection)
         logging.basicConfig(
@@ -133,15 +135,18 @@ class HailoLogger():
 
         if self.args.camera_type == "csi":
             from csi_camera import CameraCSI
-            self.camera = CameraCSI(video_wh=(self.video_w, self.video_h), model_wh=(self.frame_w, self.frame_h),
-                                    fps=self.args.fps, use_bgr=self.args.use_bgr, is_pi5=self.args.is_pi5, crop_to_square=self.args.crop_to_square,
+            self.camera = CameraCSI(device_name=self.args.device_name, video_wh=(self.video_w, self.video_h),
+                                    model_wh=(self.frame_w, self.frame_h),
+                                    fps=self.args.fps, use_bgr=self.args.use_bgr, is_pi5=self.args.is_pi5,
+                                    crop_to_square=self.args.crop_to_square,
                                     calibration_file=self.args.calibration_file, save_video=self.args.save_video,
                                     buffer_secs=self.args.buffer_secs, create_preview=self.args.create_preview,
                                     rotate_img=self.args.rotate_img)
         elif self.args.camera_type == "usb":
             from usb_camera import CameraUSB
-            self.camera = CameraUSB(video_wh=(self.video_w, self.video_h), model_wh=(self.frame_w, self.frame_h),
-                                    fps=self.args.fps, use_bgr=self.args.use_bgr, crop_to_square=self.args.crop_to_square,
+            self.camera = CameraUSB(device_name=self.args.device_name, video_wh=(self.video_w, self.video_h),
+                                    model_wh=(self.frame_w, self.frame_h), fps=self.args.fps, use_bgr=self.args.use_bgr,
+                                    crop_to_square=self.args.crop_to_square,
                                     calibration_file=self.args.calibration_file, save_video=self.args.save_video,
                                     buffer_secs=self.args.buffer_secs, create_preview=self.args.create_preview,
                                     rotate_img=self.args.rotate_img)
@@ -213,7 +218,7 @@ class HailoLogger():
 
                     # Generate timestamp with only the first 3 digits of the microseconds (milliseconds)
                     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-3]
-                    filename = f"{timestamp}.jpg"
+                    filename = f"{self.args.device_name}_{timestamp}.jpg"
 
                     # Save the frame locally
                     if self.args.save_images:
@@ -224,19 +229,6 @@ class HailoLogger():
                             cv2.imwrite(lores_path, frame)
                         except Exception as e:
                             logging.info(f"Image saving failed: {e}")
-
-                    # try:
-                    #     # Log detections locally
-                    #     utils.log_detection(filename, self.json_detections_path, detections)
-                    # except Exception as e:
-                    #     logging.info(f"Local detection logging failed: {e}")
-
-                    # Log detections to Firestore
-                    # if self.args.log_remote:
-                    #     try:
-                    #         self.log_detection_to_firestore(filename, detections)
-                    #     except Exception as e:
-                    #         logging.info(f"Firestore logging failed: {e}")
 
                     logging.info(f"Motion Detected!")
                 else:
@@ -266,8 +258,7 @@ class HailoLogger():
             self.camera.stop_camera()
 
 def main():
-    logger = HailoLogger()
-
+    logger = PixelMotionLogger()
     logger.run_detection()
 
 if __name__ == "__main__":
