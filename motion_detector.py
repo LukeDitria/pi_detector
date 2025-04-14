@@ -34,10 +34,17 @@ class MotionDetector():
         current_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         if self.previous_frame is not None:
-            has_motion = self.detect_motion(current_frame)
+            try:
+                has_motion = self.detect_motion(current_frame)
+            except Exception as e:
+                self.logger.info(f"Could not process frames! {e}")
+                self.logger.info(f"Current frame: {current_frame.shape}")
+                self.logger.info(f"Previous frame: {self.previous_frame.shape}")
+
+                has_motion = False
         else:
             has_motion = False
 
-        self.previous_frame = frame.copy()
+        self.previous_frame = current_frame.copy()
 
         return has_motion

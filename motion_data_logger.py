@@ -7,10 +7,6 @@ from datetime import datetime
 import logging
 import sys
 
-from picamera2 import Picamera2, Preview
-from picamera2.encoders import H264Encoder
-from picamera2.outputs import CircularOutput
-
 import utils
 from motion_detector import MotionDetector
 
@@ -20,40 +16,47 @@ def parse_arguments():
     parser.add_argument("--output_dir", type=str, default="output",
                         help="Directory to save detection results")
 
+    parser.add_argument("--rotate_img", type=str, default="none",
+                        help="Rotate/flip the input image: none, cw, ccw, flip", choices=["none", "cw", "ccw", "flip"])
     parser.add_argument("--threshold", type=int, default=25,
                         help="Pixel difference threshold (default: 25)")
     parser.add_argument("--motion_percent", type=float, default=0.25,
                         help="Percent of image to change to trigger event (default: 0.25)")
-
     parser.add_argument("--camera_type", type=str, default="csi", choices=["csi", "usb"],
                         help="What type of camera to use? csi/usb (default=csi)")
+
     parser.add_argument("--video_size", type=int, nargs='+', default=(1920, 1080),
                         help="Video size as width,height (default: 1920,1080)")
-    parser.add_argument("--frame_size", type=int, nargs='+', default=(480, 270),
-                        help="Width/Height of the image frame to be processed to detect motion (default: 480,270)")
+    parser.add_argument("--frame_size", type=int, nargs='+', default=(640, 480),
+                        help="Width/Height of the image frame to be processed to detect motion (default: 640,480)")
     parser.add_argument("--calibration_file", type=str, default="camera_calibration.pkl",
+
                         help="Camera calibration/correction parameters")
-    parser.add_argument("--rotate_img", type=str, default="none",
-                        help="Rotate/flip the input image: none, cw, ccw, flip", choices=["none", "cw", "ccw", "flip"])
 
     parser.add_argument("--fps", type=int, default=30,
                         help="Frames per second (default: 30)")
+
     parser.add_argument("--ips", type=int, default=5,
                         help="Inferences per second (default: 5)")
 
     parser.add_argument("--project_id", type=str,
                         help="Google Cloud project ID")
+
     parser.add_argument("--firestore_collection", type=str, default="CameraBox",
                         help="This project name to be stored on Firestore")
 
     parser.add_argument("--buffer_secs", type=int, default=3,
                         help="The Circular buffer size in seconds (default: 3)")
+
     parser.add_argument("--detection_run", type=int, default=5,
                         help="Number of detections before recording (default: 5)")
+
     parser.add_argument("--start_delay", type=int, default=30,
                         help="Delay before running stream (default: 30)")
 
+    parser.add_argument("--is_pi5", action='store_true', help="The devie a Raspberry Pi 5")
     parser.add_argument("--log_remote", action='store_true', help="Log to remote store")
+
     parser.add_argument("--create_preview", action='store_true', help="Display the camera output")
     parser.add_argument("--save_video", action='store_true', help="Save video clips of detections")
     parser.add_argument("--save_images", action='store_true', help="Save images of the detections")
@@ -67,7 +70,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-class MotionLogger():
+class HailoLogger():
     def __init__(self):
         # Set up logging to stdout (systemd will handle redirection)
         logging.basicConfig(
@@ -119,9 +122,6 @@ class MotionLogger():
         self.image_detections_path = os.path.join(self.data_output, "images")
         os.makedirs(self.image_detections_path, exist_ok=True)
 
-        self.json_detections_path = os.path.join(self.data_output, "detections")
-        os.makedirs(self.json_detections_path, exist_ok=True)
-
         if self.args.save_video:
             self.videos_detections_path = os.path.join(self.data_output, "videos")
             os.makedirs(self.videos_detections_path, exist_ok=True)
@@ -129,21 +129,12 @@ class MotionLogger():
         self.video_w, self.video_h = utils.parse_resolution(self.args.video_size)
         self.frame_w, self.frame_h = utils.parse_resolution(self.args.frame_size)
 
-        # Load class names and valid classes
-        self.class_names = utils.read_class_list(self.args.labels)
-        if self.args.valid_classes:
-            self.valid_classes = utils.read_class_list(self.args.valid_classes)
-            logging.info(f"Monitoring for classes: {', '.join(sorted(self.valid_classes))}")
-        else:
-            self.valid_classes = None
-            logging.info(f"Monitoring all classes")
-
         self.detector = MotionDetector(threshold=self.args.threshold, motion_percent=self.args.motion_percent)
 
         if self.args.camera_type == "csi":
             from csi_camera import CameraCSI
             self.camera = CameraCSI(video_wh=(self.video_w, self.video_h), model_wh=(self.frame_w, self.frame_h),
-                                    fps=self.args.fps, use_bgr=self.args.use_bgr, crop_to_square=self.args.crop_to_square,
+                                    fps=self.args.fps, use_bgr=self.args.use_bgr, is_pi5=self.args.is_pi5, crop_to_square=self.args.crop_to_square,
                                     calibration_file=self.args.calibration_file, save_video=self.args.save_video,
                                     buffer_secs=self.args.buffer_secs, create_preview=self.args.create_preview,
                                     rotate_img=self.args.rotate_img)
@@ -275,7 +266,7 @@ class MotionLogger():
             self.camera.stop_camera()
 
 def main():
-    logger = MotionLogger()
+    logger = HailoLogger()
 
     logger.run_detection()
 
