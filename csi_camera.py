@@ -1,6 +1,7 @@
 from picamera2 import Picamera2, Preview
 from picamera2.encoders import H264Encoder
 from picamera2.outputs import CircularOutput
+import cv2
 
 import os
 import logging
@@ -8,7 +9,7 @@ from datetime import datetime
 import utils
 
 class CameraCSI():
-    def __init__(self, video_wh=(1920,1080), model_wh=(640, 640), fps=5, use_bgr=False,
+    def __init__(self, video_wh=(1920,1080), model_wh=(640, 640), fps=5, use_bgr=False, is_pi5=False,
                  crop_to_square=False, calibration_file=None, save_video=False, buffer_secs=5,
                  create_preview=False, rotate_img="none"):
 
@@ -19,6 +20,8 @@ class CameraCSI():
         self.model_wh = model_wh
         self.fps = fps
         self.use_bgr = use_bgr
+        self.is_pi5 = is_pi5
+
         self.crop_to_square = crop_to_square
         self.calibration_file = calibration_file
         self.save_video = save_video
@@ -30,7 +33,10 @@ class CameraCSI():
 
         # Configure camera streams
         # Hailo model needs BGR??
-        lores_format = 'BGR888' if self.use_bgr else 'RGB888'
+        if self.is_pi5:
+            lores_format = 'BGR888' if self.use_bgr else 'RGB888'
+        else:
+            lores_format = "YUV420"
         self.logger.info(f"Low Res format {lores_format}")
 
         # Keep the aspect ratio of the main image in the lo-res image
@@ -75,6 +81,12 @@ class CameraCSI():
     def get_frames(self):
         # Capture and process frame
         (main_frame, frame), metadata = self.picam2.capture_arrays(["main", "lores"])
+
+        if self.is_pi5:
+            if self.use_bgr:
+                frame = cv2.cvtColor(frame, cv2.COLOR_YUV420p2BGR)
+            else:
+                frame = cv2.cvtColor(frame, cv2.COLOR_YUV420p2RGB)
 
         # Resize and crop to model size
         frame = utils.pre_process_image(frame, rotate=self.rotate_img,
