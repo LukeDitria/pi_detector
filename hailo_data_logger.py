@@ -43,6 +43,8 @@ def parse_arguments():
                         help="Inferences per second (default: 5)")
     parser.add_argument("--project_id", type=str,
                         help="Google Cloud project ID")
+    parser.add_argument("--firestore_collection", type=str, default="CameraBox",
+                        help="This project name to be stored on Firestore")
     parser.add_argument("--buffer_secs", type=int, default=3,
                         help="The Circular buffer size in seconds (default: 3)")
     parser.add_argument("--detection_run", type=int, default=5,
@@ -164,16 +166,21 @@ class HailoLogger():
         self.db = firestore.Client(project=self.args.project_id)
         self.storage_client = storage.Client(project=self.args.project_id)
 
-        timestamp = time.strftime("%Y%m%d-%H%M%S")
-        doc_ref = self.db.collection('startup').document(timestamp)
-        doc_data = {"startup": True}
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        document_name = f"startup_{timestamp}"
+        doc_ref = self.db.collection(self.args.firestore_collection).document(document_name)
+        doc_data = {"type": "startup",
+                    "timestamp": datetime.now()}
         doc_ref.set(doc_data)
 
     def log_detection_to_firestore(self, filename, detections):
         """Log detection results to Firestore."""
-        doc_ref = self.db.collection('detections').document(os.path.splitext(filename)[0])
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        document_name = f"detection_{timestamp}"
+        doc_ref = self.db.collection(self.args.firestore_collection).document(document_name)
 
         doc_data = {
+            "type": "detections",
             "timestamp": datetime.now(),
             "filename": filename,
             "detections": [
