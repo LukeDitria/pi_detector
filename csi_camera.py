@@ -1,5 +1,5 @@
 from picamera2 import Picamera2, Preview
-from picamera2.encoders import H264Encoder
+from picamera2.encoders import H264Encoder, Quality
 from picamera2.outputs import CircularOutput
 import cv2
 
@@ -73,8 +73,8 @@ class CameraCSI():
 
         if self.save_video:
             self.encoder = H264Encoder(1000000, repeat=True)
-            self.encoder.output = CircularOutput(buffersize=self.buffer_secs * self.fps)
-            self.picam2.start_encoder(self.encoder)
+            self.output = CircularOutput(buffersize=self.buffer_secs * self.fps)
+            self.picam2.start_recording(self.encoder, self.output, quality=Quality.HIGH)
             self.logger.info(f"Saving Video")
 
 
@@ -99,15 +99,15 @@ class CameraCSI():
             self.logger.info("Starting Video recording!")
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             file_name = os.path.join(videos_detections_path, f"{timestamp}.h264")
-            self.encoder.output.fileoutput = file_name
-            self.encoder.output.start()
+            self.output.fileoutput = file_name
+            self.output.start()
         else:
             self.logger.info("Save video is not running!")
 
     def stop_video_recording(self):
         if self.save_video:
             self.logger.info("Stoping Video recording!")
-            self.encoder.output.stop()
+            self.output.stop()
         else:
             self.logger.info("Save video is not running!")
 
