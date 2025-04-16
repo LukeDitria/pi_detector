@@ -13,7 +13,8 @@ class HailoYolo():
         model_h, model_w, *_ = self.yolo_model.get_input_shape()
 
         self.model_wh = (model_w, model_h)
-        self.hailo_aspect = model_w / model_h
+        self.hailo_aspect = (model_w / 640,
+                             model_h / 640)
 
         self.logger.info("Model initialized!")
         self.logger.info(f"Model input shape HxW: {model_h}, {model_w}")
@@ -28,7 +29,8 @@ class HailoYolo():
 
             for detection in detections:
                 y0, x0, y1, x1 = detection[:4]
-                bbox = (float(x0) / self.hailo_aspect, float(y0), float(x1) / self.hailo_aspect, float(y1))
+                bbox = (float(x0) / self.hailo_aspect[0], float(y0) / self.hailo_aspect[1],
+                        float(x1) / self.hailo_aspect[0], float(y1) / self.hailo_aspect[1])
                 score = detection[4]
                 if score >= self.confidence:
                     results.append([class_name, bbox, score])
