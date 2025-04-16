@@ -39,7 +39,7 @@ class VideoProcessor:
         if not self.is_video:
             raise ValueError(f"The path must be a video file!")
 
-    def get_frames(self, max_frames: Optional[int] = None) -> Generator['np.ndarray']:
+    def get_frames(self, max_frames: Optional[int] = None) -> Generator['np.ndarray', None, None]:
         """
         Generator that yields tuples of (frame_number, frame) from a video file.
 
@@ -97,7 +97,7 @@ class ImageProcessor:
         if not self.is_directory:
             raise ValueError(f"The path must be either a directory")
 
-    def get_frames(self) -> Generator['np.ndarray']:
+    def get_frames(self) -> Generator['np.ndarray', None, None]:
         """
         Generator that yields tuples of (file_path, image) for all images in the directory.
 
