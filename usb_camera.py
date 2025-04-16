@@ -13,7 +13,7 @@ import utils
 
 
 class CameraUSB():
-    def __init__(self, device_name, video_wh=(1920, 1080), model_wh=(640, 640), fps=30, use_bgr=False,
+    def __init__(self, device_name="site1", video_wh=(1920, 1080), model_wh=(640, 640), fps=30, use_bgr=False,
                  crop_to_square=False, calibration_file=None, save_video=False, buffer_secs=5,
                  create_preview=False, rotate_img="none"):
 
