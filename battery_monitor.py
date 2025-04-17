@@ -141,9 +141,11 @@ class BatteryMonitor:
 
         if self.args.log_remote:
             from firestore_logger import FirestoreLogger
+            logging.info(f"Firestore remote logging")
             try:
                 self.fire_logger = FirestoreLogger(project_id=self.args.project_id,
                                                    firestore_collection=self.args.firestore_collection)
+                logging.info(f"Firestore logging initialized")
             except Exception as e:
                 logging.info(f"Firestore initialization failed: {e}")
                 logging.info("Continuing without remote logging")
@@ -325,7 +327,7 @@ class BatteryMonitor:
             status_messages = []
             if not self.battery_monitor_available:
                 status_messages.append("battery monitoring disabled")
-            if self.args.log_remote and not self.firestore_available:
+            if self.args.log_remote and not self.fire_logger:
                 status_messages.append("remote logging disabled")
 
             if status_messages:
