@@ -191,6 +191,7 @@ class HailoLogger():
 
                 # Generate timestamp
                 timestamp = datetime.now().astimezone()
+                timestamp_str = timestamp.strftime("%Y%m%d-%H%M%S-%f")[:-3]
 
                 # Extract and process detections
                 detections = self.detector.get_detections(frame)
@@ -202,7 +203,7 @@ class HailoLogger():
                     no_detections_run = 0
 
                     # filename with timestamp with only the first 3 digits of the microseconds (milliseconds
-                    filename = f"{self.args.device_name}_{timestamp.strftime("%Y%m%d-%H%M%S-%f")[:-3]}"
+                    filename = f"{self.args.device_name}_{timestamp_str}"
                     # Save the frame locally
                     if self.args.save_images:
                         lores_path = os.path.join(self.image_detections_path, f"{filename}.jpg")
