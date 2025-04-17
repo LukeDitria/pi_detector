@@ -159,7 +159,7 @@ class BatteryMonitor:
     def create_log_dict(self, battery_voltage, battery_capacity, status):
         doc_data = {
             "type": "battery_status",
-            "timestamp": datetime.now(),
+            "timestamp": time.time(),
             "battery_voltage": battery_voltage,
             "battery_capacity": battery_capacity,
             "status": status
