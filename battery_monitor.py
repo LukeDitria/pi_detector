@@ -208,7 +208,7 @@ class BatteryMonitor:
 
     def log_data(self, shutdown_reason=None):
         """Log the current battery voltage to CSV file"""
-        timestamp = datetime.now()
+        timestamp = datetime.now(self.timezone)
         timestamp_str = timestamp.strftime('%Y-%m-%d %H:%M:%S')
         voltage = self.read_voltage()
         capacity = self.read_capacity()

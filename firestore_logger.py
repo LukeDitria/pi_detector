@@ -10,7 +10,7 @@ class FirestoreLogger():
         self.db = firestore.Client(project=self.project_id)
         self.storage_client = storage.Client(project=self.project_id)
 
-        self.log_data_to_firestore({"status": "on"}, doc_type="startup")
+        self.log_data_to_firestore({"status": "on"}, doc_type="startup", add_time_to_dict=True)
 
     def log_data_to_firestore(self, data_dict, doc_type, timestamp=None, add_time_to_dict=False):
         """Log data to Firestore."""
