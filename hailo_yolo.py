@@ -1,7 +1,7 @@
 from picamera2.devices import Hailo
 import logging
 import time
-import datetime
+from datetime import datetime
 
 class HailoYolo():
     def __init__(self, model_path, class_names, valid_classes, confidence):

@@ -1,6 +1,6 @@
 from google.cloud import firestore
 from google.cloud import storage
-import datetime
+from datetime import datetime
 
 class FirestoreLogger():
     def __init__(self, project_id, firestore_collection):
