@@ -10,17 +10,18 @@ class FirestoreLogger():
         self.db = firestore.Client(project=self.project_id)
         self.storage_client = storage.Client(project=self.project_id)
 
-        data_dict = {"status": "on",
-                     "timestamp": datetime.now()}
-        self.log_data_to_firestore(data_dict,
-                                   doc_type="startup")
+        self.log_data_to_firestore({"status": "on"}, doc_type="startup")
 
-    def log_data_to_firestore(self, data_dict, doc_type, timestamp=None):
+    def log_data_to_firestore(self, data_dict, doc_type, timestamp=None, add_time_to_dict=False):
         """Log data to Firestore."""
         if timestamp is None:
-            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-3]
+            timestamp = datetime.now()
 
-        document_name = f"{doc_type}_{timestamp}"
+        if add_time_to_dict:
+            data_dict["timestamp"] = timestamp
+
+        time_stamp_str = timestamp.strftime("%Y%m%d-%H%M%S-%f")[:-3]
+        document_name = f"{doc_type}_{time_stamp_str}"
         doc_ref = self.db.collection(self.firestore_collection).document(document_name)
 
         doc_ref.set(data_dict)

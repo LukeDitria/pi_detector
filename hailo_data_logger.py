@@ -189,8 +189,8 @@ class HailoLogger():
                 # Capture and process frame
                 main_frame, frame = self.camera.get_frames()
 
-                # Generate timestamp with only the first 3 digits of the microseconds (milliseconds)
-                timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-3]
+                # Generate timestamp
+                timestamp = datetime.now()
 
                 # Extract and process detections
                 detections = self.detector.get_detections(frame)
@@ -201,7 +201,8 @@ class HailoLogger():
                     detections_run += 1
                     no_detections_run = 0
 
-                    filename = f"{self.args.device_name}_{timestamp}"
+                    # filename with timestamp with only the first 3 digits of the microseconds (milliseconds
+                    filename = f"{self.args.device_name}_{timestamp.strftime("%Y%m%d-%H%M%S-%f")[:-3]}"
                     # Save the frame locally
                     if self.args.save_images:
                         lores_path = os.path.join(self.image_detections_path, f"{filename}.jpg")
@@ -227,7 +228,8 @@ class HailoLogger():
                         try:
                             self.fire_logger.log_data_to_firestore(detection_dict,
                                                                    doc_type="detection",
-                                                                   timestamp=timestamp)
+                                                                   timestamp=timestamp,
+                                                                   add_time_to_dict=True)
                         except Exception as e:
                             logging.info(f"Firestore logging failed: {e}")
 

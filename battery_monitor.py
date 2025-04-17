@@ -161,7 +161,6 @@ class BatteryMonitor:
     def create_log_dict(self, battery_voltage, battery_capacity, status):
         doc_data = {
             "type": "battery_status",
-            "timestamp": time.time(),
             "battery_voltage": battery_voltage,
             "battery_capacity": battery_capacity,
             "status": status
@@ -209,7 +208,8 @@ class BatteryMonitor:
 
     def log_data(self, shutdown_reason=None):
         """Log the current battery voltage to CSV file"""
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        timestamp = datetime.now()
+        timestamp_str = timestamp.strftime('%Y-%m-%d %H:%M:%S')
         voltage = self.read_voltage()
         capacity = self.read_capacity()
 
@@ -218,11 +218,11 @@ class BatteryMonitor:
             with open(self.args.log_file_path, 'a', newline='') as f:
                 writer = csv.writer(f)
                 if voltage is not None:
-                    writer.writerow([timestamp, f"{voltage:.2f}", f"{capacity:.2f}", shutdown_reason or "on"])
-                    logging.info(f"Logged: Time: {timestamp}, Voltage: {voltage:.2f}V, Capacity: {capacity:.2f}%")
+                    writer.writerow([timestamp_str, f"{voltage:.2f}", f"{capacity:.2f}", shutdown_reason or "on"])
+                    logging.info(f"Logged: Time: {timestamp_str}, Voltage: {voltage:.2f}V, Capacity: {capacity:.2f}%")
                 else:
-                    writer.writerow([timestamp, "N/A", shutdown_reason or "on (no battery data)"])
-                    logging.info(f"Logged: Time: {timestamp}, Voltage: N/A (battery monitor unavailable)")
+                    writer.writerow([timestamp_str, "N/A", shutdown_reason or "on (no battery data)"])
+                    logging.info(f"Logged: Time: {timestamp_str}, Voltage: N/A (battery monitor unavailable)")
         except Exception as e:
             logging.info(f"Error logging to file: {e}")
 
@@ -236,7 +236,8 @@ class BatteryMonitor:
 
                 self.fire_logger.log_data_to_firestore(doc_dict,
                                                        doc_type="battery",
-                                                       timestamp=timestamp)
+                                                       timestamp=timestamp,
+                                                       add_time_to_dict=True)
             except Exception as e:
                 logging.info(f"Error during remote logging: {e}")
 

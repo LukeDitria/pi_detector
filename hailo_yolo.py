@@ -42,7 +42,6 @@ class HailoYolo():
     def create_log_dict(self, detections):
         doc_data = {
             "type": "detections",
-            "timestamp": time.time(),
             "detections": [
                 {
                     "class": class_name,
