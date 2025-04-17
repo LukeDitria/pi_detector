@@ -33,12 +33,17 @@ def parse_arguments():
                         help="Offset (hours) to add from wakeup time pos/neg")
     parser.add_argument("--project_id", type=str,
                         help="Google Cloud project ID")
+    parser.add_argument("--firestore_collection", type=str, default="CameraBox",
+                        help="This project name to be stored on Firestore")
     parser.add_argument("--operation_time", type=str,
                         help="When the device will operate: day, night, all", default='all',
                         choices=["day", "night", "all"])
     parser.add_argument("--low_battery_voltage", type=float, default=3.2,
                         help="Battery Voltage to shutdown at")
     parser.add_argument("--log_remote", action='store_true', help="Log to remote store")
+    parser.add_argument("--suptronics_ups", action='store_true',
+                        help="Is a X1202 or X1206 UPS being used?")
+
     return parser.parse_args()
 
 
@@ -145,7 +150,7 @@ class BatteryMonitor:
                     self.db = firestore.Client(project=self.args.project_id)
                     self.storage_client = storage.Client(project=self.args.project_id)
                     # Test the connection by attempting a simple operation
-                    self.db.collection('battery').document('test').get()
+                    self.db.collection(self.args.firestore_collection).document('test').get()
                     logging.info("Firestore connection established successfully")
                     self.firestore_available = True
                 else:
@@ -157,16 +162,23 @@ class BatteryMonitor:
                 logging.info("Continuing without remote logging")
                 self.firestore_available = False
 
+        if self.args.suptronics_ups:
+            import gpiozero
+            self.charge_pin = gpiozero.DigitalOutputDevice(16)
+            self.charge_pin.off()
+
     def log_battery_to_firestore(self, battery_voltage, battery_capacity, status):
         """Log detection results to Firestore."""
         if not self.args.log_remote or not self.firestore_available:
             return
 
         try:
-            timestamp = time.strftime("%Y%m%d-%H%M%S")
-            doc_ref = self.db.collection('battery').document(timestamp)
+            timestamp = time.strftime("%Y%m%d_%H%M%S")
+            document_name = f"battery_status_{timestamp}"
+            doc_ref = self.db.collection(self.args.firestore_collection).document(document_name)
 
             doc_data = {
+                "type": "battery_status",
                 "timestamp": datetime.now(),
                 "battery_voltage": battery_voltage,
                 "battery_capacity": battery_capacity,
