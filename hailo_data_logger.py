@@ -161,10 +161,12 @@ class HailoLogger():
                                     rotate_img=self.args.rotate_img)
 
         if self.args.log_remote:
+            logging.info(f"Firestore remote logging")
             from firestore_logger import FirestoreLogger
             try:
                 self.fire_logger = FirestoreLogger(project_id=self.args.project_id,
                                                    firestore_collection=self.args.firestore_collection)
+                logging.info(f"Firestore logging initialized")
             except Exception as e:
                 logging.info(f"Firestore initialization failed: {e}")
                 logging.info("Continuing without remote logging")
