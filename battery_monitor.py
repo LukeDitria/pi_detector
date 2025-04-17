@@ -33,8 +33,8 @@ def parse_arguments():
                         help="Offset (hours) to add from wakeup time pos/neg")
     parser.add_argument("--project_id", type=str,
                         help="Google Cloud project ID")
-    parser.add_argument("--firestore_collection", type=str, default="CameraBox",
-                        help="This project name to be stored on Firestore")
+    parser.add_argument("--device_name", type=str, default="site1",
+                        help="The name of this device to be used when saving data")
     parser.add_argument("--operation_time", type=str,
                         help="When the device will operate: day, night, all", default='all',
                         choices=["day", "night", "all"])
@@ -144,7 +144,8 @@ class BatteryMonitor:
             logging.info(f"Firestore remote logging")
             try:
                 self.fire_logger = FirestoreLogger(project_id=self.args.project_id,
-                                                   firestore_collection=self.args.firestore_collection)
+                                                   firestore_collection=self.args.device_name,
+                                                   logger_type="battery")
                 logging.info(f"Firestore logging initialized")
             except Exception as e:
                 logging.info(f"Firestore initialization failed: {e}")

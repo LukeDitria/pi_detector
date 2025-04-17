@@ -3,14 +3,17 @@ from google.cloud import storage
 from datetime import datetime
 
 class FirestoreLogger():
-    def __init__(self, project_id, firestore_collection):
+    def __init__(self, project_id, firestore_collection, logger_type):
         self.project_id = project_id
         self.firestore_collection = firestore_collection
 
         self.db = firestore.Client(project=self.project_id)
         self.storage_client = storage.Client(project=self.project_id)
 
-        self.log_data_to_firestore({"status": "on"}, doc_type="startup", add_time_to_dict=True)
+        logger_type_status = f"{logger_type}_startup"
+        self.log_data_to_firestore({"status": "on"},
+                                   doc_type=logger_type_status,
+                                   add_time_to_dict=True)
 
     def log_data_to_firestore(self, data_dict, doc_type, timestamp=None, add_time_to_dict=False):
         """Log data to Firestore."""

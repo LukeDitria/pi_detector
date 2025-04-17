@@ -50,8 +50,6 @@ def parse_arguments():
 
     parser.add_argument("--project_id", type=str,
                         help="Google Cloud project ID")
-    parser.add_argument("--firestore_collection", type=str, default="CameraBox",
-                        help="This project name to be stored on Firestore")
 
     parser.add_argument("--buffer_secs", type=int, default=3,
                         help="The Circular buffer size in seconds (default: 3)")
@@ -165,7 +163,8 @@ class HailoLogger():
             from firestore_logger import FirestoreLogger
             try:
                 self.fire_logger = FirestoreLogger(project_id=self.args.project_id,
-                                                   firestore_collection=self.args.firestore_collection)
+                                                   firestore_collection=self.args.device_name,
+                                                   logger_type="data")
                 logging.info(f"Firestore logging initialized")
             except Exception as e:
                 logging.info(f"Firestore initialization failed: {e}")
