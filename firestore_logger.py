@@ -15,7 +15,7 @@ class FirestoreLogger():
     def log_data_to_firestore(self, data_dict, doc_type, timestamp=None, add_time_to_dict=False):
         """Log data to Firestore."""
         if timestamp is None:
-            timestamp = datetime.now()
+            timestamp = datetime.now().astimezone()
 
         if add_time_to_dict:
             data_dict["timestamp"] = timestamp

@@ -190,7 +190,7 @@ class HailoLogger():
                 main_frame, frame = self.camera.get_frames()
 
                 # Generate timestamp
-                timestamp = datetime.now()
+                timestamp = datetime.now().astimezone()
 
                 # Extract and process detections
                 detections = self.detector.get_detections(frame)
