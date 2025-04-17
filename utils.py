@@ -12,24 +12,6 @@ def read_class_list(filepath):
     with open(filepath, 'r', encoding='utf-8') as f:
         return [line.strip() for line in f if line.strip()]
 
-
-def extract_detections(hailo_output, class_names, valid_classes, threshold=0.5, hailo_aspect=1):
-    """Extract detections from the HailoRT-postprocess output."""
-    results = []
-    for class_id, detections in enumerate(hailo_output):
-        class_name = class_names[class_id]
-        if valid_classes and class_name not in valid_classes:
-            continue
-
-        for detection in detections:
-            y0, x0, y1, x1 = detection[:4]
-            bbox = (float(x0) / hailo_aspect, float(y0), float(x1) / hailo_aspect, float(y1))
-            score = detection[4]
-            if score >= threshold:
-                results.append([class_name, bbox, score])
-    return results
-
-
 def log_detection(filename, output_dir, detections):
     """Log detection results to a JSON file."""
     import json
@@ -172,3 +154,36 @@ def convert_h264_to_mp4(input_path, output_path, framerate=30):
         print(f"Converted {input_path} to {output_path}")
     except subprocess.CalledProcessError as e:
         print(f"FFmpeg failed: {e}")
+
+
+def draw_detections(detections, frame):
+    for detection in detections:
+        x0, y0, x1, y1 = detection[1]
+
+        x0 = int(x0 * frame.shape[1])
+        y0 = int(y0 * frame.shape[0])
+        x1 = int(x1 * frame.shape[1])
+        y1 = int(y1 * frame.shape[0])
+
+        label = f"{detection[0]} ({detection[2]:.2f})"
+
+        # Calculate text size and position
+        (text_width, text_height), baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+        text_x = int(x0 + 5)
+        text_y = int(y0 + 15)
+
+        # Draw the background rectangle on the overlay
+        cv2.rectangle(frame,
+                      (text_x, text_y - text_height),
+                      (text_x + text_width, text_y + baseline),
+                      (255, 255, 255),  # Background color (white)
+                      cv2.FILLED)
+
+        # Draw text on top of the background
+        cv2.putText(frame, label, (text_x, text_y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+
+        # Draw detection box
+        cv2.rectangle(frame, (x0, y0), (x1, y1), (0, 255, 0, 0), thickness=2)
+
+    return frame

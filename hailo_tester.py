@@ -102,38 +102,6 @@ class HailoTester():
         else:
             ValueError("You must provide a video path or image dir!")
 
-    def draw_detections(self, detections, frame):
-        for detection in detections:
-            x0, y0, x1, y1 = detection[1]
-
-            x0 = int(x0 * frame.shape[1])
-            y0 = int(y0 * frame.shape[0])
-            x1 = int(x1 * frame.shape[1])
-            y1 = int(y1 * frame.shape[0])
-
-            label = f"{detection[0]} ({detection[2]:.2f})"
-
-            # Calculate text size and position
-            (text_width, text_height), baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
-            text_x = int(x0 + 5)
-            text_y = int(y0 + 15)
-
-            # Draw the background rectangle on the overlay
-            cv2.rectangle(frame,
-                          (text_x, text_y - text_height),
-                          (text_x + text_width, text_y + baseline),
-                          (255, 255, 255),  # Background color (white)
-                          cv2.FILLED)
-
-            # Draw text on top of the background
-            cv2.putText(frame, label, (text_x, text_y),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
-
-            # Draw detection box
-            cv2.rectangle(frame, (x0, y0), (x1, y1), (0, 255, 0, 0), thickness=2)
-
-            return frame
-
     def run_detection(self):
 
         logging.info("Starting!")
@@ -143,7 +111,7 @@ class HailoTester():
             # Extract and process detections
             detections = self.detector.get_detections(frame)
 
-            frame = self.draw_detections(detections, frame)
+            frame = utils.draw_detections(detections, frame)
 
             if detections:
                 filename = f"{frame_counter}.jpg"

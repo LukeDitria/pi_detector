@@ -70,6 +70,8 @@ def parse_arguments():
                         help="Crop the input frame to be square")
     parser.add_argument("--convert_h264", action='store_true',
                         help="Convert the saved h264 video to mp4")
+    parser.add_argument("--draw_bbox", action='store_true',
+                        help="Draw bounding boxes on the saved images")
     return parser.parse_args()
 
 
@@ -243,6 +245,8 @@ class HailoLogger():
                         if self.args.use_bgr:
                             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                         try:
+                            if self.args.draw_bbox:
+                                frame = utils.draw_detections(detections, frame)
                             cv2.imwrite(lores_path, frame)
                         except Exception as e:
                             logging.info(f"Image saving failed: {e}")

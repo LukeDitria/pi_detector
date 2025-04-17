@@ -111,6 +111,7 @@ class ImageProcessor:
             if file_path.is_file() and file_path.suffix.lower() in self.IMAGE_EXTENSIONS:
                 try:
                     frame = cv2.imread(str(file_path))
+                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
                     frame = process_frame(frame, image_wh=self.image_wh, crop_to_square=self.crop_to_square)
 
