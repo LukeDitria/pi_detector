@@ -79,7 +79,6 @@ class BatteryMonitor:
                 logging.info("Using command line arguments instead")
 
         self.battery_monitor_available = True
-        self.firestore_available = False
 
         # Replace with your location coordinates and timezone
         try:
@@ -140,55 +139,32 @@ class BatteryMonitor:
             logging.info("Continuing without battery monitoring")
             self.battery_monitor_available = False
 
-        # Initialize Firestore with error handling
         if self.args.log_remote:
-            from google.cloud import firestore
-            from google.cloud import storage
-
+            from firestore_logger import FirestoreLogger
             try:
-                if self.args.project_id is not None:
-                    self.db = firestore.Client(project=self.args.project_id)
-                    self.storage_client = storage.Client(project=self.args.project_id)
-                    # Test the connection by attempting a simple operation
-                    self.db.collection(self.args.firestore_collection).document('test').get()
-                    logging.info("Firestore connection established successfully")
-                    self.firestore_available = True
-                else:
-                    logging.info("Firestore Project ID not Provided!")
-                    logging.info("Firestore NOT LOGGING!")
-                    self.firestore_available = False
+                self.fire_logger = FirestoreLogger(project_id=self.args.project_id,
+                                                   firestore_collection=self.args.firestore_collection)
             except Exception as e:
                 logging.info(f"Firestore initialization failed: {e}")
                 logging.info("Continuing without remote logging")
-                self.firestore_available = False
+                self.fire_logger = None
+        else:
+            self.fire_logger = None
 
         if self.args.suptronics_ups:
             import gpiozero
             self.charge_pin = gpiozero.DigitalOutputDevice(16)
             self.charge_pin.off()
 
-    def log_battery_to_firestore(self, battery_voltage, battery_capacity, status):
-        """Log detection results to Firestore."""
-        if not self.args.log_remote or not self.firestore_available:
-            return
-
-        try:
-            timestamp = time.strftime("%Y%m%d_%H%M%S")
-            document_name = f"battery_status_{timestamp}"
-            doc_ref = self.db.collection(self.args.firestore_collection).document(document_name)
-
-            doc_data = {
-                "type": "battery_status",
-                "timestamp": datetime.now(),
-                "battery_voltage": battery_voltage,
-                "battery_capacity": battery_capacity,
-                "status": status
-            }
-
-            doc_ref.set(doc_data)
-            logging.info(f"Successfully logged to Firestore: {status}")
-        except Exception as e:
-            logging.info(f"Error logging to Firestore: {e}")
+    def create_log_dict(self, battery_voltage, battery_capacity, status):
+        doc_data = {
+            "type": "battery_status",
+            "timestamp": datetime.now(),
+            "battery_voltage": battery_voltage,
+            "battery_capacity": battery_capacity,
+            "status": status
+        }
+        return doc_data
 
     def ensure_log_file_exists(self):
         """Create the log file with headers if it doesn't exist"""
@@ -249,12 +225,16 @@ class BatteryMonitor:
             logging.info(f"Error logging to file: {e}")
 
         # Then try to log to Firestore if enabled
-        if self.args.log_remote and self.firestore_available:
+        if self.args.log_remote and self.fire_logger:
             try:
                 if voltage is not None:
-                    self.log_battery_to_firestore(voltage, capacity, shutdown_reason or "on")
+                    doc_dict = self.create_log_dict(voltage, capacity, shutdown_reason or "on")
                 else:
-                    self.log_battery_to_firestore(None, None, shutdown_reason or "on (no battery data)")
+                    doc_dict = self.create_log_dict(None, None, shutdown_reason or "on (no battery data)")
+
+                self.fire_logger.log_data_to_firestore(doc_dict,
+                                                       doc_type="battery",
+                                                       timestamp=timestamp)
             except Exception as e:
                 logging.info(f"Error during remote logging: {e}")
 

@@ -12,29 +12,6 @@ def read_class_list(filepath):
     with open(filepath, 'r', encoding='utf-8') as f:
         return [line.strip() for line in f if line.strip()]
 
-def log_detection(filename, output_dir, detections):
-    """Log detection results to a JSON file."""
-    import json
-    from datetime import datetime
-
-    timestamp = datetime.now().isoformat()
-    results = {
-        "timestamp": timestamp,
-        "filename": filename,
-        "detections": [
-            {
-                "class": class_name,
-                "confidence": float(score),
-                "bbox": bbox
-            }
-            for class_name, bbox, score in detections
-        ]
-    }
-
-    json_path = os.path.join(output_dir, f"{os.path.splitext(filename)[0]}.json")
-    with open(json_path, 'w') as f:
-        json.dump(results, f, indent=2)
-
 def pre_process_image(image, rotate="cw", crop_to_square=False):
     if rotate == "cw":
         image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)

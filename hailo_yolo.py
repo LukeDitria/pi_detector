@@ -1,5 +1,7 @@
 from picamera2.devices import Hailo
 import logging
+import time
+import datetime
 
 class HailoYolo():
     def __init__(self, model_path, class_names, valid_classes, confidence):
@@ -36,6 +38,27 @@ class HailoYolo():
                     results.append([class_name, bbox, score])
 
         return results
+
+    def create_log_dict(self, detections):
+        doc_data = {
+            "type": "detections",
+            "timestamp": datetime.now(),
+            "detections": [
+                {
+                    "class": class_name,
+                    "confidence": float(score),
+                    "bbox": {
+                        "x0": float(bbox[0]),
+                        "y0": float(bbox[1]),
+                        "x1": float(bbox[2]),
+                        "y1": float(bbox[3])
+                    }
+                }
+                for class_name, bbox, score in detections
+            ]
+        }
+
+        return doc_data
 
     def get_detections(self, frame):
         results = self.yolo_model.run(frame)

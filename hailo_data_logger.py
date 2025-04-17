@@ -107,16 +107,6 @@ class HailoLogger():
                 logging.info(f"Error loading config file: {e}")
                 logging.info("Using command line arguments instead")
 
-        # Initialize Google Cloud clients
-        if self.args.log_remote:
-            if self.args.project_id is not None:
-                try:
-                    self.initialize_cloud_clients()
-                except Exception as e:
-                    logging.info(f"Firestore initialization failed: {e}")
-            else:
-                logging.info("You must provide a project ID to use Firestore!")
-
         if self.args.auto_select_media:
             self.data_output = os.path.join(utils.find_first_usb_drive(), "output")
         else:
@@ -170,47 +160,16 @@ class HailoLogger():
                                     buffer_secs=self.args.buffer_secs, create_preview=self.args.create_preview,
                                     rotate_img=self.args.rotate_img)
 
-    def initialize_cloud_clients(self):
-        """Initialize Google Cloud clients."""
-        from google.cloud import firestore
-        from google.cloud import storage
-
-        self.db = firestore.Client(project=self.args.project_id)
-        self.storage_client = storage.Client(project=self.args.project_id)
-
-        timestamp = time.strftime("%Y%m%d_%H%M%S")
-        document_name = f"startup_{timestamp}"
-        doc_ref = self.db.collection(self.args.firestore_collection).document(document_name)
-        doc_data = {"type": "startup",
-                    "timestamp": datetime.now()}
-        doc_ref.set(doc_data)
-
-    def log_detection_to_firestore(self, filename, detections):
-        """Log detection results to Firestore."""
-        timestamp = time.strftime("%Y%m%d_%H%M%S")
-        document_name = f"detection_{timestamp}"
-        doc_ref = self.db.collection(self.args.firestore_collection).document(document_name)
-
-        doc_data = {
-            "type": "detections",
-            "timestamp": datetime.now(),
-            "filename": filename,
-            "detections": [
-                {
-                    "class": class_name,
-                    "confidence": float(score),
-                    "bbox": {
-                        "x0": float(bbox[0]),
-                        "y0": float(bbox[1]),
-                        "x1": float(bbox[2]),
-                        "y1": float(bbox[3])
-                    }
-                }
-                for class_name, bbox, score in detections
-            ]
-        }
-
-        doc_ref.set(doc_data)
+        if self.args.log_remote:
+            from firestore_logger import FirestoreLogger
+            try:
+                self.fire_logger = FirestoreLogger(project_id=self.args.project_id,
+                                                   firestore_collection=self.args.firestore_collection)
+            except Exception as e:
+                logging.info(f"Firestore initialization failed: {e}")
+                logging.info("Continuing without remote logging")
+        else:
+            self.fire_logger = None
 
     def run_detection(self):
         detections_run = 0
@@ -228,20 +187,22 @@ class HailoLogger():
                 # Capture and process frame
                 main_frame, frame = self.camera.get_frames()
 
+                # Generate timestamp with only the first 3 digits of the microseconds (milliseconds)
+                timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-3]
+
                 # Extract and process detections
                 detections = self.detector.get_detections(frame)
 
                 if detections:
+                    detection_dict = self.detector.create_log_dict(detections)
+
                     detections_run += 1
                     no_detections_run = 0
 
-                    # Generate timestamp with only the first 3 digits of the microseconds (milliseconds)
-                    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")[:-3]
-                    filename = f"{self.args.device_name}_{timestamp}.jpg"
-
+                    filename = f"{self.args.device_name}_{timestamp}"
                     # Save the frame locally
                     if self.args.save_images:
-                        lores_path = os.path.join(self.image_detections_path, filename)
+                        lores_path = os.path.join(self.image_detections_path, f"{filename}.jpg")
                         if self.args.use_bgr:
                             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                         try:
@@ -250,17 +211,21 @@ class HailoLogger():
                             cv2.imwrite(lores_path, frame)
                         except Exception as e:
                             logging.info(f"Image saving failed: {e}")
-
                     try:
                         # Log detections locally
-                        utils.log_detection(filename, self.json_detections_path, detections)
+                        json_path = os.path.join(self.json_detections_path, f"{filename}.json")
+                        with open(json_path, 'w') as f:
+                            json.dump(detection_dict, f, indent=2)
+
                     except Exception as e:
                         logging.info(f"Local detection logging failed: {e}")
 
                     # Log detections to Firestore
-                    if self.args.log_remote:
+                    if self.args.log_remote and self.fire_logger:
                         try:
-                            self.log_detection_to_firestore(filename, detections)
+                            self.fire_logger.log_data_to_firestore(detection_dict,
+                                                                   doc_type="detection",
+                                                                   timestamp=timestamp)
                         except Exception as e:
                             logging.info(f"Firestore logging failed: {e}")
 
