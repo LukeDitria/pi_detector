@@ -15,6 +15,7 @@ from picamera2.outputs import CircularOutput
 
 import utils
 from hailo_yolo import HailoYolo
+from data_loggers import DataLogger
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Hailo object detection on camera stream")
@@ -105,22 +106,13 @@ class HailoLogger():
                 logging.info(f"Error loading config file: {e}")
                 logging.info("Using command line arguments instead")
 
-        if self.args.auto_select_media:
-            self.data_output = os.path.join(utils.find_first_usb_drive(), "output")
-        else:
-            self.data_output = self.args.output_dir
+        self.detector = HailoYolo(model_path=self.args.model, labels=self.args.labels,
+                                  valid_classes=self.args.valid_classes, confidence=self.args.confidence)
 
-        # Create output directories
-        os.makedirs(self.data_output, exist_ok=True)
-        self.image_detections_path = os.path.join(self.data_output, "images")
-        os.makedirs(self.image_detections_path, exist_ok=True)
-
-        self.json_detections_path = os.path.join(self.data_output, "detections")
-        os.makedirs(self.json_detections_path, exist_ok=True)
-
-        if self.args.save_video:
-            self.videos_detections_path = os.path.join(self.data_output, "videos")
-            os.makedirs(self.videos_detections_path, exist_ok=True)
+        self.data_logger = DataLogger(device_name=self.args.device_name, output_dir=self.args.output_dir,
+                                      save_images=self.args.save_images, log_remote=self.args.log_remote,
+                                      auto_select_media=self.args.auto_select_media,
+                                      firestore_project_id=self.args.project_id)
 
         # Parse video size
         if isinstance(self.args.video_size, str):
@@ -128,18 +120,6 @@ class HailoLogger():
         else:
             # Handle case where video_size might be a list/tuple in the JSON
             self.video_w, self.video_h = self.args.video_size
-
-        # Load class names and valid classes
-        self.class_names = utils.read_class_list(self.args.labels)
-        if self.args.valid_classes:
-            self.valid_classes = utils.read_class_list(self.args.valid_classes)
-            logging.info(f"Monitoring for classes: {', '.join(sorted(self.valid_classes))}")
-        else:
-            self.valid_classes = None
-            logging.info(f"Monitoring all classes")
-
-        self.detector = HailoYolo(model_path=self.args.model, class_names=self.class_names,
-                                  valid_classes=self.valid_classes, confidence=self.args.confidence)
 
         if self.args.camera_type == "csi":
             from csi_camera import CameraCSI
@@ -158,19 +138,10 @@ class HailoLogger():
                                     buffer_secs=self.args.buffer_secs, create_preview=self.args.create_preview,
                                     rotate_img=self.args.rotate_img)
 
-        if self.args.log_remote:
-            logging.info(f"Firestore remote logging")
-            from firestore_logger import FirestoreLogger
-            try:
-                self.fire_logger = FirestoreLogger(project_id=self.args.project_id,
-                                                   firestore_collection=self.args.device_name,
-                                                   logger_type="data")
-                logging.info(f"Firestore logging initialized")
-            except Exception as e:
-                logging.info(f"Firestore initialization failed: {e}")
-                logging.info("Continuing without remote logging")
-        else:
-            self.fire_logger = None
+        if self.args.save_video:
+            self.videos_detections_path = os.path.join(self.args.data_output, "videos")
+            os.makedirs(self.videos_detections_path, exist_ok=True)
+
 
     def run_detection(self):
         detections_run = 0
@@ -190,7 +161,6 @@ class HailoLogger():
 
                 # Generate timestamp
                 timestamp = datetime.now().astimezone()
-                timestamp_str = timestamp.strftime("%Y%m%d-%H%M%S-%f")[:-3]
 
                 # Extract and process detections
                 detections = self.detector.get_detections(frame)
@@ -201,41 +171,11 @@ class HailoLogger():
                     detections_run += 1
                     no_detections_run = 0
 
-                    # filename with timestamp with only the first 3 digits of the microseconds (milliseconds
-                    filename = f"{self.args.device_name}_{timestamp_str}"
-                    # Save the frame locally
-                    if self.args.save_images:
-                        lores_path = os.path.join(self.image_detections_path, f"{filename}.jpg")
-                        if self.args.use_bgr:
-                            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                        try:
-                            if self.args.draw_bbox:
-                                frame = utils.draw_detections(detections, frame)
-                            cv2.imwrite(lores_path, frame)
-                        except Exception as e:
-                            logging.info(f"Image saving failed: {e}")
-                    try:
-                        # Log detections locally
-                        json_path = os.path.join(self.json_detections_path, f"{filename}.json")
-                        with open(json_path, 'w') as f:
-                            json.dump(detection_dict, f, indent=2)
+                    if self.args.use_bgr:
+                        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-                    except Exception as e:
-                        logging.info(f"Local detection logging failed: {e}")
+                    self.data_logger.log_data(detection_dict, frame, timestamp)
 
-                    # Log detections to Firestore
-                    if self.args.log_remote and self.fire_logger:
-                        try:
-                            self.fire_logger.log_data_to_firestore(detection_dict,
-                                                                   doc_type="detection",
-                                                                   timestamp=timestamp,
-                                                                   add_time_to_dict=True)
-                        except Exception as e:
-                            logging.info(f"Firestore logging failed: {e}")
-
-                    logging.info(f"Detected {len(detections)} objects in {filename}")
-                    for class_name, _, score in detections:
-                        logging.info(f"- {class_name} with confidence {score:.2f}")
                 else:
                     no_detections_run += 1
                     detections_run = 0
@@ -264,7 +204,6 @@ class HailoLogger():
 
 def main():
     logger = HailoLogger()
-
     logger.run_detection()
 
 if __name__ == "__main__":
