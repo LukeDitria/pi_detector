@@ -2,10 +2,10 @@ from picamera2.devices import Hailo
 import logging
 import time
 from datetime import datetime
+import utils
 
 class HailoYolo():
-    def __init__(self, model_path, class_names, valid_classes, confidence):
-        self.class_names = class_names
+    def __init__(self, model_path, labels, valid_classes, confidence):
         self.valid_classes = valid_classes
         self.confidence = confidence
 
@@ -17,6 +17,16 @@ class HailoYolo():
         self.model_wh = (model_w, model_h)
         self.hailo_aspect = (model_w / 640,
                              model_h / 640)
+
+        # Load class names and valid classes
+        self.class_names = utils.read_class_list(labels)
+        if self.valid_classes:
+            self.valid_classes = utils.read_class_list(self.valid_classes)
+            logging.info(f"Monitoring for classes: {', '.join(sorted(self.valid_classes))}")
+        else:
+            self.valid_classes = None
+            logging.info(f"Monitoring all classes")
+
 
         self.logger.info("Model initialized!")
         self.logger.info(f"Model input shape HxW: {model_h}, {model_w}")
@@ -64,6 +74,10 @@ class HailoYolo():
 
         # Extract and process detections
         detections = self.extract_detections(results)
+
+        logging.info(f"Detected {len(detections)}")
+        for class_name, _, score in detections:
+            logging.info(f"- {class_name} with confidence {score:.2f}")
 
         return detections
 
