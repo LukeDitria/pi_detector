@@ -14,7 +14,7 @@ import utils
 
 class CameraUSB():
     def __init__(self, device_name="site1", video_wh=(1920, 1080), model_wh=(640, 640), fps=30, use_bgr=False,
-                 crop_to_square=False, calibration_file=None, save_video=False, buffer_secs=5,
+                 crop_to_square=False, calibration_file=None, save_video=False, data_output=None, buffer_secs=5,
                  create_preview=False, rotate_img="none"):
 
         self.logger = logging.getLogger(__name__)
@@ -32,6 +32,11 @@ class CameraUSB():
         self.buffer_secs = buffer_secs
         self.create_preview = create_preview
         self.rotate_img = rotate_img
+
+        self.data_output = data_output
+        if self.save_video:
+            self.videos_detections_path = os.path.join(self.data_output, "videos")
+            os.makedirs(self.videos_detections_path, exist_ok=True)
 
         self.cam = cv2.VideoCapture(0)
         # self.cam.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
@@ -61,7 +66,7 @@ class CameraUSB():
 
         self.start()
 
-    def start_video_recording(self, videos_detections_path):
+    def start_video_recording(self):
         if self.save_video:
             with self.recording_lock:
                 if self.recording:
@@ -71,7 +76,7 @@ class CameraUSB():
                 # Generate filename if not provided
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 filename = f"{self.device_name}_{timestamp}.mp4"
-                filepath = os.path.join(videos_detections_path, filename)
+                filepath = os.path.join(self.videos_detections_path, filename)
 
                 # Create VideoWriter object
                 fourcc = cv2.VideoWriter_fourcc(*'mp4v')

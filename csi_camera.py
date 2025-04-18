@@ -10,7 +10,7 @@ import utils
 
 class CameraCSI():
     def __init__(self, device_name, video_wh=(1920,1080), model_wh=(640, 640), fps=5, use_bgr=False, is_pi5=False,
-                 crop_to_square=False, calibration_file=None, save_video=False, buffer_secs=5,
+                 crop_to_square=False, calibration_file=None, save_video=False, data_output=None, buffer_secs=5,
                  create_preview=False, rotate_img="none", convert_h264=False):
 
         self.logger = logging.getLogger(__name__)
@@ -31,6 +31,11 @@ class CameraCSI():
         self.create_preview = create_preview
         self.rotate_img = rotate_img
         self.video_file_name = None
+
+        self.data_output = data_output
+        if self.save_video:
+            self.videos_detections_path = os.path.join(self.data_output, "videos")
+            os.makedirs(self.videos_detections_path, exist_ok=True)
 
         self.picam2 = Picamera2()
 
@@ -96,11 +101,11 @@ class CameraCSI():
 
         return main_frame, frame
 
-    def start_video_recording(self, videos_detections_path):
+    def start_video_recording(self):
         if self.save_video:
             self.logger.info("Starting Video recording!")
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            self.video_file_name = os.path.join(videos_detections_path, f"{self.device_name}_{timestamp}.h264")
+            timestamp = datetime.now().astimezone().strftime("%Y%m%d_%H%M%S")
+            self.video_file_name = os.path.join(self.videos_detections_path, f"{self.device_name}_{timestamp}.h264")
             self.output.fileoutput = self.video_file_name
             self.output.start()
         else:

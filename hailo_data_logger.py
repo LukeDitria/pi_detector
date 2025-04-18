@@ -125,23 +125,18 @@ class HailoLogger():
             from csi_camera import CameraCSI
             self.camera = CameraCSI(device_name=self.args.device_name, video_wh=(self.video_w, self.video_h),
                                     model_wh=self.detector.model_wh, fps=self.args.fps, use_bgr=self.args.use_bgr,
-                                    crop_to_square=self.args.crop_to_square,
-                                    calibration_file=self.args.calibration_file, save_video=self.args.save_video,
+                                    crop_to_square=self.args.crop_to_square, calibration_file=self.args.calibration_file,
+                                    save_video=self.args.save_video, data_output=self.data_logger.data_output,
                                     buffer_secs=self.args.buffer_secs, create_preview=self.args.create_preview,
                                     rotate_img=self.args.rotate_img, convert_h264=self.args.convert_h264)
         elif self.args.camera_type == "usb":
             from usb_camera import CameraUSB
             self.camera = CameraUSB(device_name=self.args.device_name, video_wh=(self.video_w, self.video_h),
                                     model_wh=self.detector.model_wh, fps=self.args.fps, use_bgr=self.args.use_bgr,
-                                    crop_to_square=self.args.crop_to_square,
-                                    calibration_file=self.args.calibration_file, save_video=self.args.save_video,
+                                    crop_to_square=self.args.crop_to_square, calibration_file=self.args.calibration_file,
+                                    save_video=self.args.save_video, data_output=self.data_logger.data_output,
                                     buffer_secs=self.args.buffer_secs, create_preview=self.args.create_preview,
                                     rotate_img=self.args.rotate_img)
-
-        if self.args.save_video:
-            self.videos_detections_path = os.path.join(self.args.data_output, "videos")
-            os.makedirs(self.videos_detections_path, exist_ok=True)
-
 
     def run_detection(self):
         detections_run = 0
@@ -184,7 +179,7 @@ class HailoLogger():
                 if self.args.save_video:
                     if detections_run == self.args.detection_run:
                         if not encoding:
-                            self.camera.start_video_recording(self.videos_detections_path)
+                            self.camera.start_video_recording()
                             encoding = True
                     elif encoding and no_detections_run == self.args.buffer_secs * self.args.ips:
                             self.camera.stop_video_recording()
