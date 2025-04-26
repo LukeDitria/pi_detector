@@ -6,6 +6,8 @@ import json
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Hailo object detection on camera stream")
     parser.add_argument("--config_file", type=str, help="Path to JSON configuration file")
+    parser.add_argument("--detector_type", type=str, default="motion",
+                        help="The type of detector to use", choices=["motion", "yolo"])
     parser.add_argument("--output_dir", type=str, default="output",
                         help="Directory to save detection results")
     parser.add_argument("--start_delay", type=int, default=30,
@@ -14,9 +16,10 @@ def parse_arguments():
                         help="The name of this device to be used when saving data")
 
     parser.add_argument("--model", type=str, default="/usr/share/hailo-models/yolov8s_h8.hef",
-                        help="Path for the HEF model")
-    parser.add_argument("--detector_type", type=str, default="motion",
-                        help="The type of detector to use", choices=["motion", "yolo"])
+                        help="Path for the model file")
+    parser.add_argument("--accel_device", type=str, default="hailo", choices=["hailo", "imx500"],
+                        help="The accelerator device used")
+
     parser.add_argument("--labels", type=str, default="coco.txt",
                         help="Path to a text file containing labels")
     parser.add_argument("--valid_classes", type=str,
@@ -48,7 +51,7 @@ def parse_arguments():
     parser.add_argument("--buffer_secs", type=int, default=3,
                         help="The Circular buffer size in seconds (default: 3)")
     parser.add_argument("--detection_run", type=int, default=5,
-                        help="Number of detections before recording (default: 5)")
+                        help="Number of detections in a row before recording starts (default: 5)")
 
     parser.add_argument("--log_remote", action='store_true', help="Log to remote store")
     parser.add_argument("--create_preview", action='store_true', help="Display the camera output")
