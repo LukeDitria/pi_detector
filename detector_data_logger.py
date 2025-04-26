@@ -4,7 +4,6 @@ from datetime import datetime
 import logging
 import sys
 
-from hailo_yolo import HailoYolo
 from data_loggers import DataLogger
 import get_args
 
@@ -24,12 +23,18 @@ class DetectorLogger():
         # First parse command line arguments with all defaults
         self.args = get_args.parse_arguments()
 
-        self.detector = HailoYolo(model_path=self.args.model, labels=self.args.labels,
-                                  valid_classes=self.args.valid_classes, confidence=self.args.confidence)
+        if self.args.detector_type == "motion":
+            from motion_detector import MotionDetector
+            self.detector = MotionDetector(threshold=self.args.motion_threshold,
+                                           motion_percent=self.args.motion_percent)
+        elif self.args.detector_type == "yolo":
+            from hailo_yolo import HailoYolo
+            self.detector = HailoYolo(model_path=self.args.model, labels=self.args.labels,
+                                      valid_classes=self.args.valid_classes, confidence=self.args.confidence)
 
         self.data_logger = DataLogger(device_name=self.args.device_name, output_dir=self.args.output_dir,
-                                      save_images=self.args.save_images, log_remote=self.args.log_remote,
-                                      auto_select_media=self.args.auto_select_media,
+                                      save_data_local=self.args.save_data_local, save_images=self.args.save_images,
+                                      log_remote=self.args.log_remote, auto_select_media=self.args.auto_select_media,
                                       firestore_project_id=self.args.project_id)
 
         # Parse video size
@@ -40,7 +45,7 @@ class DetectorLogger():
             self.video_w, self.video_h = self.args.video_size
 
         if self.args.camera_type == "csi":
-            from csi_camera import CameraCSI
+            from cameras.csi_camera import CameraCSI
             self.camera = CameraCSI(device_name=self.args.device_name, video_wh=(self.video_w, self.video_h),
                                     model_wh=self.detector.model_wh, fps=self.args.fps, use_bgr=self.args.use_bgr,
                                     crop_to_square=self.args.crop_to_square, calibration_file=self.args.calibration_file,
@@ -48,7 +53,7 @@ class DetectorLogger():
                                     buffer_secs=self.args.buffer_secs, create_preview=self.args.create_preview,
                                     rotate_img=self.args.rotate_img, convert_h264=self.args.convert_h264)
         elif self.args.camera_type == "usb":
-            from usb_camera import CameraUSB
+            from cameras.usb_camera import CameraUSB
             self.camera = CameraUSB(device_name=self.args.device_name, video_wh=(self.video_w, self.video_h),
                                     model_wh=self.detector.model_wh, fps=self.args.fps, use_bgr=self.args.use_bgr,
                                     crop_to_square=self.args.crop_to_square, calibration_file=self.args.calibration_file,

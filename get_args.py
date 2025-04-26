@@ -15,12 +15,19 @@ def parse_arguments():
 
     parser.add_argument("--model", type=str, default="/usr/share/hailo-models/yolov8s_h8.hef",
                         help="Path for the HEF model")
+    parser.add_argument("--detector_type", type=str, default="motion",
+                        help="The type of detector to use", choices=["motion", "yolo"])
     parser.add_argument("--labels", type=str, default="coco.txt",
                         help="Path to a text file containing labels")
     parser.add_argument("--valid_classes", type=str,
                         help="Path to text file containing list of valid class names to detect")
     parser.add_argument("--confidence", type=float, default=0.5,
                         help="Confidence threshold (default: 0.5)")
+
+    parser.add_argument("--motion_threshold", type=int, default=25,
+                        help="Pixel difference threshold for pixel based motion detection (default: 25)")
+    parser.add_argument("--motion_percent", type=float, default=0.25,
+                        help="Percent of image to change to trigger event for pixel based motion detection (default: 0.25)")
 
     parser.add_argument("--camera_type", type=str, default="csi", choices=["csi", "usb"],
                         help="What type of camera to use? csi/usb (default=csi)")
@@ -47,6 +54,8 @@ def parse_arguments():
     parser.add_argument("--create_preview", action='store_true', help="Display the camera output")
     parser.add_argument("--save_video", action='store_true', help="Save video clips of detections")
     parser.add_argument("--save_images", action='store_true', help="Save images of the detections")
+    parser.add_argument("--save_data_local", action='store_true', help="Save detection data locally")
+
     parser.add_argument("--auto_select_media", action='store_true',
                         help="Auto selects a device mounted to /media to use as the storage device for outputs")
     parser.add_argument("--use_bgr", action='store_true',

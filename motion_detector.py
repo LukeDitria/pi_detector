@@ -28,23 +28,23 @@ class MotionDetector():
         # Determine if meaningful motion is present (adjust this as needed)
         has_motion = motion_percentage > self.motion_percent
 
-        return has_motion
+        return has_motion, motion_percentage
 
     def get_detections(self, frame):
         current_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         if self.previous_frame is not None:
             try:
-                has_motion = self.detect_motion(current_frame)
+                has_motion, motion_percentage = self.detect_motion(current_frame)
+                doc_data = {
+                    "type": "detections",
+                    "motion_percentage": motion_percentage
+                }
+                return doc_data
             except Exception as e:
                 self.logger.info(f"Could not process frames! {e}")
                 self.logger.info(f"Current frame: {current_frame.shape}")
                 self.logger.info(f"Previous frame: {self.previous_frame.shape}")
-
-                has_motion = False
+                return None
         else:
-            has_motion = False
-
-        self.previous_frame = current_frame.copy()
-
-        return has_motion
+            return None

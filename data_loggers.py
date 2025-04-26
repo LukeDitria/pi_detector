@@ -1,6 +1,6 @@
-from google.cloud import firestore
-from google.cloud import storage
 from datetime import datetime
+from typing import Union, Generator, List, Optional, Tuple, Dict, Any
+import numpy as np
 
 import os
 import utils
@@ -9,10 +9,12 @@ import json
 import cv2
 
 class DataLogger():
-    def __init__(self, device_name, output_dir, save_images, log_remote, auto_select_media, firestore_project_id=None):
+    def __init__(self, device_name: str, output_dir: str, save_data_local: bool,
+                 save_images: bool, log_remote: bool, auto_select_media: bool, firestore_project_id: Optional[str]):
 
         self.device_name = device_name
         self.save_images = save_images
+        self.save_data_local = save_data_local
 
         self.log_remote = log_remote
         self.firestore_project_id = firestore_project_id
@@ -43,7 +45,7 @@ class DataLogger():
         else:
             self.fire_logger = None
 
-    def log_data(self, detection_dict, frame, timestamp):
+    def log_data(self, detection_dict: dict, frame: np.ndarray, timestamp: datetime):
 
         timestamp_str = timestamp.strftime("%Y%m%d-%H%M%S-%f")[:-3]
 
@@ -57,14 +59,16 @@ class DataLogger():
                 cv2.imwrite(lores_path, frame)
             except Exception as e:
                 logging.info(f"Image saving failed: {e}")
-        try:
-            # Log detections locally
-            json_path = os.path.join(self.json_detections_path, f"{filename}.json")
-            with open(json_path, 'w') as f:
-                json.dump(detection_dict, f, indent=2)
 
-        except Exception as e:
-            logging.info(f"Local detection logging failed: {e}")
+        if self.save_data_local:
+            try:
+                # Log detections locally
+                json_path = os.path.join(self.json_detections_path, f"{filename}.json")
+                with open(json_path, 'w') as f:
+                    json.dump(detection_dict, f, indent=2)
+
+            except Exception as e:
+                logging.info(f"Local detection logging failed: {e}")
 
         # Log detections to Firestore
         if self.log_remote and self.fire_logger:
@@ -81,6 +85,8 @@ class FirestoreLogger():
     def __init__(self, project_id, firestore_collection, logger_type):
         self.project_id = project_id
         self.firestore_collection = firestore_collection
+        from google.cloud import firestore
+        from google.cloud import storage
 
         self.db = firestore.Client(project=self.project_id)
         self.storage_client = storage.Client(project=self.project_id)
