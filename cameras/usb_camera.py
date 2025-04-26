@@ -176,7 +176,7 @@ class CameraUSB():
             # Release the camera when done
             self.cam.release()
 
-    def get_frames(self) -> Optional[Tuple[np.ndarray, np.ndarray]]:
+    def get_frames(self) -> Optional[Tuple[np.ndarray, np.ndarray, None]]:
 
         with self.frame_lock:
             if self.current_frame is None:
@@ -195,7 +195,7 @@ class CameraUSB():
         if self.use_bgr:
             frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
-        return main_frame, frame
+        return main_frame, frame, None
 
     def stop_camera(self):
         try:
