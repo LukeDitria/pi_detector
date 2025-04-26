@@ -1,4 +1,6 @@
 from picamera2.devices import IMX500
+from picamera2.devices.imx500 import (NetworkIntrinsics,
+                                      postprocess_nanodet_detection)
 from picamera2 import Metadata
 
 import logging
@@ -26,6 +28,13 @@ class IMX500Yolo:
         self.logger = logging.getLogger(__name__)
 
         self.yolo_model = IMX500(model_path)
+        self.intrinsics = self.yolo_model.network_intrinsics
+        if not self.intrinsics:
+            self.intrinsics = NetworkIntrinsics()
+            self.intrinsics.task = "object detection"
+
+        logging.info(f"postprocess: {self.intrinsics.postprocess}")
+
         self.yolo_model.show_network_fw_progress_bar()
         model_w, model_h, *_ = self.yolo_model.get_input_size()
 
@@ -45,19 +54,25 @@ class IMX500Yolo:
 
     def extract_detections(self, np_outputs: np.ndarray) -> Optional[Dict[str, Any]]:
         """Extract detections from the IMX500 output."""
-        boxes, scores, classes = np_outputs[0][0], np_outputs[1][0], np_outputs[2][0]
+        if np_outputs:
+            boxes, scores, classes = np_outputs[0][0], np_outputs[1][0], np_outputs[2][0]
 
-        results = []
-        for box, score, category in zip(boxes, scores, classes):
-            class_name = self.class_names[int(category)]
-            if self.valid_classes and class_name not in self.valid_classes:
-                continue
+            results = []
+            for box, score, category in zip(boxes, scores, classes):
+                class_name = self.class_names[int(category)]
+                if self.valid_classes and class_name not in self.valid_classes:
+                    continue
 
-            y0, x0, h, w = box
-            bbox = (float(x0), float(y0), float(x0 + w), float(y0 + h))
-            score = float(score)
-            if score >= self.confidence:
-                results.append(DetectionYOLO(class_name=class_name, bbox=bbox, score=score))
+                x0, y0, x1, y1 = box
+                bbox = (float(x0) / self.model_wh[0], float(y0) / self.model_wh[1],
+                        float(x1) / self.model_wh[0], float(y1) / self.model_wh[1])
+                score = float(score)
+                if score >= self.confidence:
+                    results.append(DetectionYOLO(class_name=class_name, bbox=bbox, score=score))
+                    logging.info(f"- {x0}, {y0}, {x1} {y1}: score {score}")
+
+        else:
+            return None
 
         if len(results) > 0:
             detection_dicts = [det.to_dict() for det in results]
@@ -68,7 +83,6 @@ class IMX500Yolo:
             return doc_data
         else:
             return None
-
 
     def get_detections(self, metadata: Metadata) -> Optional[Dict[str, Any]]:
         results = self.yolo_model.get_outputs(metadata, add_batch=True)
