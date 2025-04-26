@@ -5,14 +5,15 @@ import pickle
 from picamera2 import Picamera2
 from picamera2 import MappedArray, Preview
 import subprocess
+from typing import Optional, Tuple, Dict, Any, Union
 
 
-def read_class_list(filepath):
+def read_class_list(filepath: str):
     """Read list of class names from a text file."""
     with open(filepath, 'r', encoding='utf-8') as f:
         return [line.strip() for line in f if line.strip()]
 
-def pre_process_image(image, rotate="cw", crop_to_square=False):
+def pre_process_image(image: np.ndarray, rotate: str = "cw", crop_to_square: bool = False) -> np.ndarray:
     if rotate == "cw":
         image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
     elif rotate == "ccw":
@@ -29,7 +30,7 @@ def pre_process_image(image, rotate="cw", crop_to_square=False):
 
     return image
 
-def find_first_usb_drive():
+def find_first_usb_drive() -> Optional[str]:
     # Relies on raspi OS to auto mount USB storage to /media/username etc
     media_path = "/media"
 
@@ -76,7 +77,7 @@ def correct_image(request, cam_params):
         np.copyto(m.array, undistorted)
 
 
-def get_calibration_params(calibration_file, main_wh, lores_wh):
+def get_calibration_params(calibration_file: str, main_wh: Tuple[int, int], lores_wh: Tuple[int, int]) -> Optional[dict]:
     if os.path.exists(calibration_file):
         with open(calibration_file, 'rb') as f:
             calibration_data = pickle.load(f)
@@ -108,7 +109,7 @@ def get_calibration_params(calibration_file, main_wh, lores_wh):
     else:
         return None
 
-def parse_resolution(image_size):
+def parse_resolution(image_size: Union[str, tuple]) -> Tuple[int, int]:
     # Parse video size
     if isinstance(image_size, str):
         video_w, video_h = map(int, image_size.split(','))
@@ -118,7 +119,7 @@ def parse_resolution(image_size):
 
     return video_w, video_h
 
-def convert_h264_to_mp4(input_path, output_path, framerate=30):
+def convert_h264_to_mp4(input_path: str, output_path: str, framerate: int = 30):
     command = [
         'ffmpeg',
         '-framerate', str(framerate),
@@ -133,16 +134,19 @@ def convert_h264_to_mp4(input_path, output_path, framerate=30):
         print(f"FFmpeg failed: {e}")
 
 
-def draw_detections(detections, frame):
-    for detection in detections:
-        x0, y0, x1, y1 = detection[1]
+def draw_detections(detections: Dict[str, Any], frame: np.ndarray) -> np.ndarray:
+    for detection in detections["detections"]:
+        x0, y0, x1, y1 = detection["bbox"]
 
         x0 = int(x0 * frame.shape[1])
         y0 = int(y0 * frame.shape[0])
         x1 = int(x1 * frame.shape[1])
         y1 = int(y1 * frame.shape[0])
 
-        label = f"{detection[0]} ({detection[2]:.2f})"
+        class_name = detection["class_name"]
+        score = detection["score"]
+
+        label = f"{class_name} ({score:.2f})"
 
         # Calculate text size and position
         (text_width, text_height), baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
