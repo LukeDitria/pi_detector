@@ -4,6 +4,7 @@ import smbus
 import gpiozero
 from datetime import datetime
 import csv
+import os
 
 import logging
 from typing import Union, Generator, List, Optional
