@@ -12,9 +12,16 @@ class DataLogger():
     def __init__(self, device_name: str, output_dir: str, save_data_local: bool,
                  save_images: bool, log_remote: bool, auto_select_media: bool, firestore_project_id: Optional[str]):
 
+        self.logger = logging.getLogger(__name__)
+
         self.device_name = device_name
         self.save_images = save_images
+        if self.save_images:
+            self.logger.info(f"Saving Images locally")
+
         self.save_data_local = save_data_local
+        if self.save_data_local:
+            self.logger.info(f"Saving detection data locally")
 
         self.log_remote = log_remote
         self.firestore_project_id = firestore_project_id
@@ -33,15 +40,15 @@ class DataLogger():
         os.makedirs(self.json_detections_path, exist_ok=True)
 
         if self.log_remote:
-            logging.info(f"Firestore remote logging")
+            self.logger.info(f"Firestore remote logging")
             try:
                 self.fire_logger = FirestoreLogger(project_id=self.firestore_project_id,
                                                    firestore_collection=self.device_name,
                                                    logger_type="data")
-                logging.info(f"Firestore logging initialized")
+                self.logger.info(f"Firestore logging initialized")
             except Exception as e:
-                logging.info(f"Firestore initialization failed: {e}")
-                logging.info("Continuing without remote logging")
+                self.logger.info(f"Firestore initialization failed: {e}")
+                self.logger.info("Continuing without remote logging")
         else:
             self.fire_logger = None
 
@@ -58,7 +65,7 @@ class DataLogger():
             try:
                 cv2.imwrite(lores_path, frame)
             except Exception as e:
-                logging.info(f"Image saving failed: {e}")
+                self.logger.info(f"Image saving failed: {e}")
 
         if self.save_data_local:
             try:
@@ -68,7 +75,7 @@ class DataLogger():
                     json.dump(detection_dict, f, indent=2)
 
             except Exception as e:
-                logging.info(f"Local detection logging failed: {e}")
+                self.logger.info(f"Local detection logging failed: {e}")
 
         # Log detections to Firestore
         if self.log_remote and self.fire_logger:
@@ -78,7 +85,7 @@ class DataLogger():
                                                        timestamp=timestamp,
                                                        add_time_to_dict=True)
             except Exception as e:
-                logging.info(f"Firestore logging failed: {e}")
+                self.logger.info(f"Firestore logging failed: {e}")
 
 
 class FirestoreLogger():
