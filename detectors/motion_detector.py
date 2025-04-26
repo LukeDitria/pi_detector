@@ -25,8 +25,8 @@ class MotionDetector():
         motion_mask = cv2.dilate(motion_mask, None)
 
         # Calculate percentage of frame showing motion
-        motion_percentage = (cv2.countNonZero(motion_mask) /
-                             (motion_mask.shape[0] * motion_mask.shape[1])) * 100
+        motion_percentage = int((cv2.countNonZero(motion_mask) /
+                             (motion_mask.shape[0] * motion_mask.shape[1])) * 100)
 
         # Determine if meaningful motion is present (adjust this as needed)
         has_motion = motion_percentage > self.motion_percent
