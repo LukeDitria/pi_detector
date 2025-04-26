@@ -8,7 +8,7 @@ import logging
 import json
 import cv2
 
-class DataLogger():
+class DataLogger:
     def __init__(self, device_name: str, output_dir: str, save_data_local: bool,
                  save_images: bool, draw_bbox: bool, log_remote: bool, auto_select_media: bool,
                  firestore_project_id: Optional[str]):
@@ -65,7 +65,10 @@ class DataLogger():
 
         if self.save_images:
             if self.draw_bbox:
-                frame = utils.draw_detections(detection_dict, frame)
+                try:
+                    frame = utils.draw_detections(detection_dict, frame)
+                except Exception as e:
+                    self.logger.info(f"Failed Drawing detections!: {e}")
             # Save the frame locally
             lores_path = os.path.join(self.image_detections_path, f"{filename}.jpg")
             try:

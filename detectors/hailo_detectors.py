@@ -16,7 +16,7 @@ class DetectionYOLO:
         return asdict(self)
 
 
-class HailoYolo():
+class HailoYolo:
     def __init__(self, model_path: str, labels_path: str, valid_classes_path: str, confidence: float):
         self.valid_classes_path = valid_classes_path
         self.confidence = confidence

@@ -7,7 +7,7 @@ import sys
 from data_loggers import DataLogger
 import get_args
 
-class DetectorLogger():
+class DetectorLogger:
     def __init__(self):
         # Set up logging to stdout (systemd will handle redirection)
         logging.basicConfig(
@@ -23,14 +23,22 @@ class DetectorLogger():
         # First parse command line arguments with all defaults
         self.args = get_args.parse_arguments()
 
+        if self.args.accel_device == "imx500" and not self.args.camera_type == "csi":
+            ValueError("If you are using the IMX500 camera_type MUST be set to csi")
+
         if self.args.detector_type == "motion":
             from detectors.motion_detector import MotionDetector
             self.detector = MotionDetector(threshold=self.args.motion_threshold,
                                            motion_percent=self.args.motion_percent)
         elif self.args.detector_type == "yolo":
-            from detectors.hailo_yolo import HailoYolo
-            self.detector = HailoYolo(model_path=self.args.model, labels_path=self.args.labels,
-                                      valid_classes_path=self.args.valid_classes, confidence=self.args.confidence)
+            if self.args.accel_device == "hailo":
+                from detectors.hailo_detectors import HailoYolo
+                self.detector = HailoYolo(model_path=self.args.model, labels_path=self.args.labels,
+                                          valid_classes_path=self.args.valid_classes, confidence=self.args.confidence)
+            elif self.args.accel_device == "imx500":
+                from detectors.imx500_detectors import IMX500Yolo
+                self.detector = IMX500Yolo(model_path=self.args.model, labels_path=self.args.labels,
+                                          valid_classes_path=self.args.valid_classes, confidence=self.args.confidence)
 
         self.data_logger = DataLogger(device_name=self.args.device_name, output_dir=self.args.output_dir,
                                       save_data_local=self.args.save_data_local, save_images=self.args.save_images,
@@ -75,16 +83,20 @@ class DetectorLogger():
         logging.info("Starting!")
         try:
             while True:
-                # Capture and process frame
-                main_frame, frame = self.camera.get_frames()
-                if frame is None:
-                    continue
-
                 # Generate timestamp
                 timestamp = datetime.now().astimezone()
 
-                # Extract and process detections
-                data_dict = self.detector.get_detections(frame)
+                # Capture and process frame
+                main_frame, frame, metadata = self.camera.get_frames()
+                if frame is None:
+                    continue
+
+                if self.args.accel_device == "imx500":
+                    # Extract the detections for the IMX500 from the metadata
+                    data_dict = self.detector.get_detections(metadata)
+                else:
+                    # Process the frame and extract the detections
+                    data_dict = self.detector.get_detections(frame)
 
                 if data_dict:
                     detections_run += 1
