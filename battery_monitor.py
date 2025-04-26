@@ -7,7 +7,6 @@ import csv
 import os
 import subprocess
 import logging
-import json
 
 from astral import LocationInfo
 from astral.sun import sun
@@ -15,37 +14,7 @@ from astral.geocoder import database, lookup
 
 import pytz
 import sys
-import argparse
-
-
-def parse_arguments():
-    parser = argparse.ArgumentParser(description="Raspi Battery monitor")
-    parser.add_argument("--log_file_path", type=str, default="battery_logs.csv",
-                        help="Directory to save detection results")
-    parser.add_argument("--config_file", type=str, help="Path to JSON configuration file")
-    parser.add_argument("--device_location", type=str, default="Melbourne",
-                        help="Directory to save detection results")
-    parser.add_argument("--log_rate_min", type=int, default=5,
-                        help="Logging every (x) minutes (default: 5)")
-    parser.add_argument("--shutdown_offset", type=int, default=0,
-                        help="Offset (hours) to add from shutdown time pos/neg")
-    parser.add_argument("--wakeup_offset", type=int, default=0,
-                        help="Offset (hours) to add from wakeup time pos/neg")
-    parser.add_argument("--project_id", type=str,
-                        help="Google Cloud project ID")
-    parser.add_argument("--device_name", type=str, default="site1",
-                        help="The name of this device to be used when saving data")
-    parser.add_argument("--operation_time", type=str,
-                        help="When the device will operate: day, night, all", default='all',
-                        choices=["day", "night", "all"])
-    parser.add_argument("--low_battery_voltage", type=float, default=3.2,
-                        help="Battery Voltage to shutdown at")
-    parser.add_argument("--log_remote", action='store_true', help="Log to remote store")
-    parser.add_argument("--suptronics_ups", action='store_true',
-                        help="Is a X1202 or X1206 UPS being used?")
-
-    return parser.parse_args()
-
+import get_args
 
 class BatteryMonitor:
     def __init__(self):
@@ -60,23 +29,8 @@ class BatteryMonitor:
         )
         logging.info("Capture Box Awake!")
 
-        self.args = parse_arguments()
-
-        # Load config file if provided and override CLI args
-        if self.args.config_file:
-            try:
-                with open(self.args.config_file, 'r') as f:
-                    config = json.load(f)
-
-                # Override CLI args with JSON config values
-                for key, value in config.items():
-                    if hasattr(self.args, key):
-                        setattr(self.args, key, value)
-
-                logging.info(f"Loaded configuration from {self.args.config_file}")
-            except Exception as e:
-                logging.info(f"Error loading config file: {e}")
-                logging.info("Using command line arguments instead")
+        # First parse command line arguments with all defaults
+        self.args = get_args.parse_arguments()
 
         self.battery_monitor_available = True
 
@@ -195,7 +149,6 @@ class BatteryMonitor:
         """Read battery capacity"""
         if not self.battery_monitor_available:
             return None
-
         try:
             read = self.bus.read_word_data(self.address, 4)
             swapped = struct.unpack("<H", struct.pack(">H", read))[0]
