@@ -24,11 +24,11 @@ class DetectorLogger():
         self.args = get_args.parse_arguments()
 
         if self.args.detector_type == "motion":
-            from motion_detector import MotionDetector
+            from detectors.motion_detector import MotionDetector
             self.detector = MotionDetector(threshold=self.args.motion_threshold,
                                            motion_percent=self.args.motion_percent)
         elif self.args.detector_type == "yolo":
-            from hailo_yolo import HailoYolo
+            from detectors.hailo_yolo import HailoYolo
             self.detector = HailoYolo(model_path=self.args.model, labels=self.args.labels,
                                       valid_classes=self.args.valid_classes, confidence=self.args.confidence)
 
