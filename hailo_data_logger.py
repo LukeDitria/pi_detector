@@ -65,7 +65,7 @@ class HailoLogger():
         last_frame_time = time.time()
 
         logging.info("Wait for startup and battery monitor checks!")
-        time.sleep(self.args.start_delay)
+        time.sleep(self.args.start_delay + 2)
         logging.info("Starting!")
         try:
             while True:

@@ -57,7 +57,7 @@ class HailoYolo():
                 y0, x0, y1, x1 = detection[:4]
                 bbox = (float(x0) / self.hailo_aspect[0], float(y0) / self.hailo_aspect[1],
                         float(x1) / self.hailo_aspect[0], float(y1) / self.hailo_aspect[1])
-                score = detection[4]
+                score = float(detection[4])
                 if score >= self.confidence:
                     results.append(DetectionYOLO(class_name=class_name, bbox=bbox, score=score))
 
@@ -82,7 +82,9 @@ class HailoYolo():
             detections = data_dict["detections"]
             logging.info(f"Detected {len(detections)}")
             for detection in detections:
-                logging.info(f"- {detection.class_name} with confidence {detection.score:.2f}")
+                class_name = detection["class_name"]
+                score = detection["score"]
+                logging.info(f"- {class_name} with confidence {score:.2f}")
 
         return data_dict
 

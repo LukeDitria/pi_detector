@@ -275,7 +275,7 @@ class BatteryMonitor:
 
     def run_monitor(self):
         logging.info("Wait for startup!")
-        time.sleep(20)
+        time.sleep(self.args.start_delay)
         try:
             logging.info(f"Battery monitoring started. Logging to {self.args.log_file_path}")
 
