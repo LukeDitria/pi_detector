@@ -8,6 +8,8 @@ from queue import Queue
 from datetime import datetime
 import os
 import argparse
+import numpy as np
+from typing import Union, Generator, List, Optional, Tuple, Dict, Any
 
 import utils
 
@@ -173,11 +175,11 @@ class CameraUSB():
             # Release the camera when done
             self.cam.release()
 
-    def get_frames(self):
+    def get_frames(self) -> Optional[Tuple[np.ndarray, np.ndarray]]:
 
         with self.frame_lock:
             if self.current_frame is None:
-                return None, None
+                return None
             main_frame = self.current_frame.copy()
 
         frame = cv2.resize(main_frame, self.lores_wh)

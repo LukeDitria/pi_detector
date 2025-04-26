@@ -2,7 +2,21 @@ from picamera2.devices import Hailo
 import logging
 import time
 from datetime import datetime
+from typing import Union, Generator, List, Optional, Tuple, Dict, Any
+from dataclasses import dataclass, asdict
 import utils
+import numpy as np
+
+
+@dataclass
+class DetectionYOLO:
+    class_name: str
+    bbox: Tuple[float, float, float, float]  # (x0, y0, x1, y1)
+    score: float
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
 
 class HailoYolo():
     def __init__(self, model_path, labels, valid_classes, confidence):
@@ -31,7 +45,7 @@ class HailoYolo():
         self.logger.info("Model initialized!")
         self.logger.info(f"Model input shape HxW: {model_h}, {model_w}")
 
-    def extract_detections(self, hailo_output):
+    def extract_detections(self, hailo_output) -> Optional[Dict[str, Any]]:
         """Extract detections from the HailoRT-postprocess output."""
         results = []
         for class_id, detections in enumerate(hailo_output):
@@ -45,41 +59,32 @@ class HailoYolo():
                         float(x1) / self.hailo_aspect[0], float(y1) / self.hailo_aspect[1])
                 score = detection[4]
                 if score >= self.confidence:
-                    results.append([class_name, bbox, score])
+                    results.append(DetectionYOLO(class_name=class_name, bbox=bbox, score=score))
 
-        return results
+        if len(results) > 0:
+            detection_dicts = [det.to_dict() for det in results]
+            doc_data = {
+                "type": "detections",
+                "detections": detection_dicts
+            }
+            return doc_data
+        else:
+            return None
 
-    def create_log_dict(self, detections):
-        doc_data = {
-            "type": "detections",
-            "detections": [
-                {
-                    "class": class_name,
-                    "confidence": float(score),
-                    "bbox": {
-                        "x0": float(bbox[0]),
-                        "y0": float(bbox[1]),
-                        "x1": float(bbox[2]),
-                        "y1": float(bbox[3])
-                    }
-                }
-                for class_name, bbox, score in detections
-            ]
-        }
 
-        return doc_data
-
-    def get_detections(self, frame):
+    def get_detections(self, frame: np.ndarray) -> Optional[Dict[str, Any]]:
         results = self.yolo_model.run(frame)
 
         # Extract and process detections
-        detections = self.extract_detections(results)
+        data_dict = self.extract_detections(results)
 
-        logging.info(f"Detected {len(detections)}")
-        for class_name, _, score in detections:
-            logging.info(f"- {class_name} with confidence {score:.2f}")
+        if data_dict:
+            detections = data_dict["detections"]
+            logging.info(f"Detected {len(detections)}")
+            for detection in detections:
+                logging.info(f"- {detection.class_name} with confidence {detection.score:.2f}")
 
-        return detections
+        return data_dict
 
 
 

@@ -7,6 +7,7 @@ import csv
 import os
 import subprocess
 import logging
+from typing import Union, Generator, List, Optional
 
 from astral import LocationInfo
 from astral.sun import sun
@@ -113,7 +114,7 @@ class BatteryMonitor:
             self.charge_pin = gpiozero.DigitalOutputDevice(16)
             self.charge_pin.off()
 
-    def create_log_dict(self, battery_voltage, battery_capacity, status):
+    def create_log_dict(self, battery_voltage: float, battery_capacity: float, status: str) -> dict:
         doc_data = {
             "type": "battery_status",
             "battery_voltage": battery_voltage,
@@ -129,7 +130,7 @@ class BatteryMonitor:
                 writer = csv.writer(f)
                 writer.writerow(['Timestamp', 'Voltage', 'Capacity', 'Shutdown_Reason'])
 
-    def read_voltage(self):
+    def read_voltage(self) -> Optional[float]:
         """Read battery voltage"""
         if not self.battery_monitor_available:
             return None
@@ -145,7 +146,7 @@ class BatteryMonitor:
             self.battery_monitor_available = False
             return None
 
-    def read_capacity(self):
+    def read_capacity(self) -> Optional[float]:
         """Read battery capacity"""
         if not self.battery_monitor_available:
             return None
@@ -160,7 +161,7 @@ class BatteryMonitor:
             self.battery_monitor_available = False
             return None
 
-    def log_data(self, shutdown_reason=None):
+    def log_data(self, shutdown_reason: Optional[str] = None):
         """Log the current battery voltage to CSV file"""
         timestamp = datetime.now(self.timezone)
         timestamp_str = timestamp.strftime('%Y-%m-%d %H:%M:%S')
@@ -195,7 +196,7 @@ class BatteryMonitor:
             except Exception as e:
                 logging.info(f"Error during remote logging: {e}")
 
-    def perform_shutdown(self, reason):
+    def perform_shutdown(self, reason: str):
         """Perform system shutdown with proper logging and error handling"""
         logging.info(f"Initiating shutdown due to: {reason}")
         logging.info("Logging final reading before shutdown...")
@@ -216,7 +217,7 @@ class BatteryMonitor:
             logging.info(f"Failed to shutdown: {e}")
             sys.exit(1)
 
-    def check_shutdown_time(self):
+    def check_shutdown_time(self) -> bool:
         """Check if current time is after the shutdown time"""
         try:
             now = datetime.now(self.timezone)
@@ -237,7 +238,7 @@ class BatteryMonitor:
         else:
             self.set_alarm(hour_later)
 
-    def set_alarm(self, alarm_time):
+    def set_alarm(self, alarm_time: datetime) -> bool:
         try:
             # Clear any existing alarm
             subprocess.run(["sudo", "sh", "-c", "echo 0 > /sys/class/rtc/rtc0/wakealarm"], check=True)
@@ -251,7 +252,7 @@ class BatteryMonitor:
             logging.info(f"Error setting wake alarm: {e}")
             return False
 
-    def check_shutdown_condition(self):
+    def check_shutdown_condition(self) -> None:
         """Check if it's after sunset or if battery voltage is critically low"""
         # Shutdown if after sunset
         if self.sleep_wake:

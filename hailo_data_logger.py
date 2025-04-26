@@ -4,11 +4,6 @@ from datetime import datetime
 import logging
 import sys
 
-from picamera2 import Picamera2, Preview
-from picamera2.devices import Hailo
-from picamera2.encoders import H264Encoder
-from picamera2.outputs import CircularOutput
-
 from hailo_yolo import HailoYolo
 from data_loggers import DataLogger
 import get_args
@@ -76,23 +71,23 @@ class HailoLogger():
             while True:
                 # Capture and process frame
                 main_frame, frame = self.camera.get_frames()
+                if frame is None:
+                    continue
 
                 # Generate timestamp
                 timestamp = datetime.now().astimezone()
 
                 # Extract and process detections
-                detections = self.detector.get_detections(frame)
+                data_dict = self.detector.get_detections(frame)
 
-                if detections:
-                    detection_dict = self.detector.create_log_dict(detections)
-
+                if data_dict:
                     detections_run += 1
                     no_detections_run = 0
 
                     if self.args.use_bgr:
                         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-                    self.data_logger.log_data(detection_dict, frame, timestamp)
+                    self.data_logger.log_data(data_dict, frame, timestamp)
 
                 else:
                     no_detections_run += 1

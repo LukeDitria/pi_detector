@@ -2,6 +2,8 @@ from picamera2 import Picamera2, Preview
 from picamera2.encoders import H264Encoder, Quality
 from picamera2.outputs import CircularOutput
 import cv2
+import numpy as np
+from typing import Union, Generator, List, Optional, Tuple, Dict, Any
 
 import os
 import logging
@@ -85,7 +87,7 @@ class CameraCSI():
             self.picam2.start_recording(self.encoder, self.output, quality=Quality.HIGH)
             self.logger.info(f"Saving Video")
 
-    def get_frames(self):
+    def get_frames(self) -> Optional[Tuple[np.ndarray, np.ndarray]]:
         # Capture and process frame
         (main_frame, frame), metadata = self.picam2.capture_arrays(["main", "lores"])
 
