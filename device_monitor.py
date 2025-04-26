@@ -33,7 +33,8 @@ class DeviceMonitor:
         # First parse command line arguments with all defaults
         self.args = get_args.parse_arguments()
 
-        self.battery_monitor = SupTronicsBatteryMonitor(log_file_path=self.args.log_file_path,
+        battery_log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), self.args.log_file_path)
+        self.battery_monitor = SupTronicsBatteryMonitor(log_file_path=battery_log_path,
                                                         low_battery_voltage=self.args.low_battery_voltage,
                                                         log_remote=self.args.log_remote,
                                                         project_id=self.args.project_id,
