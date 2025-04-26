@@ -26,8 +26,8 @@ def parse_arguments():
 
     parser.add_argument("--motion_threshold", type=int, default=25,
                         help="Pixel difference threshold for pixel based motion detection (default: 25)")
-    parser.add_argument("--motion_percent", type=float, default=0.25,
-                        help="Percent of image to change to trigger event for pixel based motion detection (default: 0.25)")
+    parser.add_argument("--motion_percent", type=int, default=25,
+                        help="Percent of image to change to trigger event for pixel based motion detection (default: 25)")
 
     parser.add_argument("--camera_type", type=str, default="csi", choices=["csi", "usb"],
                         help="What type of camera to use? csi/usb (default=csi)")
