@@ -8,7 +8,7 @@ from hailo_yolo import HailoYolo
 from data_loggers import DataLogger
 import get_args
 
-class HailoLogger():
+class DetectorLogger():
     def __init__(self):
         # Set up logging to stdout (systemd will handle redirection)
         logging.basicConfig(
@@ -116,7 +116,7 @@ class HailoLogger():
             self.camera.stop_camera()
 
 def main():
-    logger = HailoLogger()
+    logger = DetectorLogger()
     logger.run_detection()
 
 if __name__ == "__main__":
