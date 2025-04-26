@@ -10,13 +10,15 @@ import cv2
 
 class DataLogger():
     def __init__(self, device_name: str, output_dir: str, save_data_local: bool,
-                 save_images: bool, log_remote: bool, auto_select_media: bool, firestore_project_id: Optional[str]):
+                 save_images: bool, draw_bbox: bool, log_remote: bool, auto_select_media: bool,
+                 firestore_project_id: Optional[str]):
 
         self.logger = logging.getLogger(__name__)
         self.logger.info(f"Data Logger Created")
 
         self.device_name = device_name
         self.save_images = save_images
+        self.draw_bbox = draw_bbox
         self.save_data_local = save_data_local
 
         self.logger.info(f"Saving Images locally: {str(self.save_images)}")
@@ -54,7 +56,7 @@ class DataLogger():
         else:
             self.fire_logger = None
 
-    def log_data(self, detection_dict: dict, frame: np.ndarray, timestamp: datetime):
+    def log_data(self, detection_dict: dict, frame: np.ndarray, timestamp: datetime) -> None:
 
         timestamp_str = timestamp.strftime("%Y%m%d-%H%M%S-%f")[:-3]
 
@@ -62,6 +64,8 @@ class DataLogger():
         filename = f"{self.device_name}_{timestamp_str}"
 
         if self.save_images:
+            if self.draw_bbox:
+                frame = utils.draw_detections(detection_dict, frame)
             # Save the frame locally
             lores_path = os.path.join(self.image_detections_path, f"{filename}.jpg")
             try:
@@ -91,7 +95,7 @@ class DataLogger():
 
 
 class FirestoreLogger():
-    def __init__(self, project_id, firestore_collection, logger_type):
+    def __init__(self, project_id: str, firestore_collection: str, logger_type: str):
         self.project_id = project_id
         self.firestore_collection = firestore_collection
         from google.cloud import firestore
@@ -105,7 +109,8 @@ class FirestoreLogger():
                                    doc_type=logger_type_status,
                                    add_time_to_dict=True)
 
-    def log_data_to_firestore(self, data_dict, doc_type, timestamp=None, add_time_to_dict=False):
+    def log_data_to_firestore(self, data_dict: dict, doc_type: str, timestamp: Optional[datetime] = None,
+                              add_time_to_dict: bool = False) -> None:
         """Log data to Firestore."""
         if timestamp is None:
             timestamp = datetime.now().astimezone()

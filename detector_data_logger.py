@@ -29,12 +29,13 @@ class DetectorLogger():
                                            motion_percent=self.args.motion_percent)
         elif self.args.detector_type == "yolo":
             from detectors.hailo_yolo import HailoYolo
-            self.detector = HailoYolo(model_path=self.args.model, labels=self.args.labels,
-                                      valid_classes=self.args.valid_classes, confidence=self.args.confidence)
+            self.detector = HailoYolo(model_path=self.args.model, labels_path=self.args.labels,
+                                      valid_classes_path=self.args.valid_classes, confidence=self.args.confidence)
 
         self.data_logger = DataLogger(device_name=self.args.device_name, output_dir=self.args.output_dir,
                                       save_data_local=self.args.save_data_local, save_images=self.args.save_images,
-                                      log_remote=self.args.log_remote, auto_select_media=self.args.auto_select_media,
+                                      draw_bbox=self.args.draw_bbox, log_remote=self.args.log_remote,
+                                      auto_select_media=self.args.auto_select_media,
                                       firestore_project_id=self.args.project_id)
 
         # Parse video size

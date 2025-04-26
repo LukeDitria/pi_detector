@@ -238,7 +238,7 @@ class BatteryMonitor:
         else:
             self.set_alarm(hour_later)
 
-    def set_alarm(self, alarm_time: datetime) -> bool:
+    def set_alarm(self, alarm_time: datetime) -> None:
         try:
             # Clear any existing alarm
             subprocess.run(["sudo", "sh", "-c", "echo 0 > /sys/class/rtc/rtc0/wakealarm"], check=True)
@@ -247,10 +247,8 @@ class BatteryMonitor:
                            check=True)
 
             logging.info(f"Wake alarm set for {alarm_time.strftime('%Y-%m-%d %H:%M:%S')}")
-            return True
         except subprocess.CalledProcessError as e:
             logging.info(f"Error setting wake alarm: {e}")
-            return False
 
     def check_shutdown_condition(self) -> None:
         """Check if it's after sunset or if battery voltage is critically low"""

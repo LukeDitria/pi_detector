@@ -1,10 +1,10 @@
 import logging
 import cv2
 import numpy as np
-from typing import Union, Generator, List, Optional, Tuple, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 
 class MotionDetector():
-    def __init__(self, threshold=25, motion_percent=0.5):
+    def __init__(self, threshold: int = 25, motion_percent: int = 25):
         self.threshold = threshold
         self.motion_percent = motion_percent
         self.model_wh = (640, 480)
@@ -12,7 +12,7 @@ class MotionDetector():
         self.logger = logging.getLogger(__name__)
         self.previous_frame = None
 
-    def detect_motion(self, current_frame):
+    def detect_motion(self, current_frame: np.ndarray) -> Tuple[bool, int]:
 
         # Compute absolute difference between frames
         frame_diff = cv2.absdiff(self.previous_frame, current_frame)

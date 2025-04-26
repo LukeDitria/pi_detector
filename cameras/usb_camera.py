@@ -15,9 +15,10 @@ import utils
 
 
 class CameraUSB():
-    def __init__(self, device_name="site1", video_wh=(1920, 1080), model_wh=(640, 640), fps=30, use_bgr=False,
-                 crop_to_square=False, calibration_file=None, save_video=False, data_output=None, buffer_secs=5,
-                 create_preview=False, rotate_img="none"):
+    def __init__(self, device_name: str, video_wh: Tuple[int, int] = (1920,1080), model_wh: Tuple[int, int] = (640, 640),
+                 fps: int = 30, use_bgr: bool = False, crop_to_square: bool = False,
+                 calibration_file: Optional[str] = None, save_video: bool = False, data_output: str = ".",
+                 buffer_secs: int = 5, create_preview: bool = False, rotate_img: str = "none"):
 
         self.logger = logging.getLogger(__name__)
         self.logger.info("Camera initialized!")

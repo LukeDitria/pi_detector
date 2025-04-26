@@ -33,7 +33,7 @@ def parse_arguments():
                         help="What type of camera to use? csi/usb (default=csi)")
     parser.add_argument("--video_size", type=str, default="1920,1080",
                         help="Video size as width,height (default: 1920,1080)")
-    parser.add_argument("--calibration_file", type=str, default="camera_calibration.pkl",
+    parser.add_argument("--calibration_file", type=str,
                         help="Camera calibration/correction parameters")
     parser.add_argument("--fps", type=int, default=30,
                         help="Frames per second (default: 30)")

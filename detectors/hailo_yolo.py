@@ -1,8 +1,6 @@
 from picamera2.devices import Hailo
 import logging
-import time
-from datetime import datetime
-from typing import Union, Generator, List, Optional, Tuple, Dict, Any
+from typing import Optional, Tuple, Dict, Any
 from dataclasses import dataclass, asdict
 import utils
 import numpy as np
@@ -19,8 +17,8 @@ class DetectionYOLO:
 
 
 class HailoYolo():
-    def __init__(self, model_path, labels, valid_classes, confidence):
-        self.valid_classes = valid_classes
+    def __init__(self, model_path: str, labels_path: str, valid_classes_path: str, confidence: float):
+        self.valid_classes_path = valid_classes_path
         self.confidence = confidence
 
         self.logger = logging.getLogger(__name__)
@@ -33,14 +31,13 @@ class HailoYolo():
                              model_h / 640)
 
         # Load class names and valid classes
-        self.class_names = utils.read_class_list(labels)
-        if self.valid_classes:
-            self.valid_classes = utils.read_class_list(self.valid_classes)
+        self.class_names = utils.read_class_list(labels_path)
+        if self.valid_classes_path:
+            self.valid_classes = utils.read_class_list(self.valid_classes_path)
             logging.info(f"Monitoring for classes: {', '.join(sorted(self.valid_classes))}")
         else:
             self.valid_classes = None
             logging.info(f"Monitoring all classes")
-
 
         self.logger.info("Model initialized!")
         self.logger.info(f"Model input shape HxW: {model_h}, {model_w}")

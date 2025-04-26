@@ -11,9 +11,10 @@ from datetime import datetime
 import utils
 
 class CameraCSI():
-    def __init__(self, device_name, video_wh=(1920,1080), model_wh=(640, 640), fps=5, use_bgr=False, is_pi5=False,
-                 crop_to_square=False, calibration_file=None, save_video=False, data_output=None, buffer_secs=5,
-                 create_preview=False, rotate_img="none", convert_h264=False):
+    def __init__(self, device_name: str, video_wh: Tuple[int, int] = (1920,1080), model_wh: Tuple[int, int] = (640, 640),
+                 fps: int = 5, use_bgr: bool = False, is_pi5: bool = False, crop_to_square: bool = False,
+                 calibration_file: Optional[str] = None, save_video: bool = False, data_output: str = ".",
+                 buffer_secs: int = 5, create_preview: bool = False, rotate_img: str = "none", convert_h264: bool = False):
 
         self.logger = logging.getLogger(__name__)
         self.logger.info("Camera initialized!")
