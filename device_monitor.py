@@ -15,7 +15,7 @@ from astral.geocoder import database, lookup
 import pytz
 import sys
 import get_args
-from battery_monitor import SupTronicsBatteryMonitor
+from battery_monitors.suptron_ups import SupTronicsBatteryMonitor
 
 class DeviceMonitor:
     def __init__(self):
