@@ -13,21 +13,23 @@ class DataLogger():
                  save_images: bool, log_remote: bool, auto_select_media: bool, firestore_project_id: Optional[str]):
 
         self.logger = logging.getLogger(__name__)
+        self.logger.info(f"Data Logger Created")
 
         self.device_name = device_name
         self.save_images = save_images
-        if self.save_images:
-            self.logger.info(f"Saving Images locally")
-
         self.save_data_local = save_data_local
-        if self.save_data_local:
-            self.logger.info(f"Saving detection data locally")
+
+        self.logger.info(f"Saving Images locally: {str(self.save_images)}")
+        self.logger.info(f"Saving detection data locally: {str(self.save_data_local)}")
 
         self.log_remote = log_remote
         self.firestore_project_id = firestore_project_id
 
         if auto_select_media:
             self.data_output = os.path.join(utils.find_first_usb_drive(), "output")
+            if self.data_output is None:
+                self.data_output = output_dir
+                self.logger.warning(f"CANNOT find any media device! Defaulting to local saving!")
         else:
             self.data_output = output_dir
 
