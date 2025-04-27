@@ -124,7 +124,7 @@ class DeviceMonitor:
 
             # Set startup time to next wakeup time if hour_later alarm would be after next shutdown
             # If it's operating during the night just shutdown, because there is no sun!
-            if hour_later > self.shutdown_time or self.args.operation_time == "night":
+            if self.args.operation_time == "day" and hour_later > self.shutdown_time:
                 self.set_alarm(self.startup_time)
             else:
                 self.set_alarm(hour_later)
