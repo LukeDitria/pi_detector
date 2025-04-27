@@ -152,7 +152,7 @@ class DeviceMonitor:
         if self.sleep_wake:
             if self.check_shutdown_time():
                 self.set_alarm(self.startup_time)
-                self.perform_shutdown("Shutdown! After sunset!")
+                self.perform_shutdown("Shutdown! After shutdown time!")
 
         # Only check battery voltage if monitor is available
         if self.battery_monitor:
