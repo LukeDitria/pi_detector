@@ -118,15 +118,18 @@ class DeviceMonitor:
 
     def set_low_power_wakeup(self):
         """Set the wakeup time after a low battery shutdown"""
-        now = datetime.now(self.timezone)
-        hour_later = now + timedelta(hours=1)
+        try:
+            now = datetime.now(self.timezone)
+            hour_later = now + timedelta(hours=1)
 
-        # Set startup time to next wakeup time if hour_later alarm would be after next shutdown
-        # If it's operating during the night just shutdown, because there is no sun!
-        if hour_later > self.shutdown_time or self.args.operation_time == "night":
-            self.set_alarm(self.startup_time)
-        else:
-            self.set_alarm(hour_later)
+            # Set startup time to next wakeup time if hour_later alarm would be after next shutdown
+            # If it's operating during the night just shutdown, because there is no sun!
+            if hour_later > self.shutdown_time or self.args.operation_time == "night":
+                self.set_alarm(self.startup_time)
+            else:
+                self.set_alarm(hour_later)
+        except Exception as e:
+            logging.info(f"Error setting low-power wakeup: {e}")
 
     def set_alarm(self, alarm_time: datetime) -> None:
         try:
