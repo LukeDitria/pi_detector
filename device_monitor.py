@@ -49,26 +49,28 @@ class DeviceMonitor:
         self.timezone = pytz.timezone(self.location.timezone)
         self.sleep_wake = False
         now = datetime.now(self.timezone)
+        today = sun(self.location.observer, date=now)
+        tomorrow = sun(self.location.observer, date=now + timedelta(days=1))
+        yesterday = sun(self.location.observer, date=now - timedelta(days=1))
+
         if self.args.operation_time == "day":
             self.sleep_wake = True
-            s = sun(self.location.observer, date=now)
-            self.shutdown_time = s["sunset"]
-            next_day = now + timedelta(days=1)
-            next_s = sun(self.location.observer, date=next_day)
-            self.startup_time = next_s["sunrise"]
+            if now <= today["sunrise"]:
+                self.shutdown_time = yesterday["sunset"]
+                self.startup_time = today["sunrise"]
+            else:
+                self.shutdown_time = today["sunset"]
+                self.startup_time = tomorrow["sunrise"]
 
         elif self.args.operation_time == "night":
             self.sleep_wake = True
             # If the device has woken up after midnight
-            if now.hour < 12:
-                days_delta = 0
+            if now <= today["sunset"]:
+                self.shutdown_time = today["sunrise"]
+                self.startup_time = today["sunset"]
             else:
-                days_delta = 1
-
-            next_day = datetime.now(self.timezone) + timedelta(days=days_delta)
-            next_s = sun(self.location.observer, date=next_day)
-            self.shutdown_time = next_s["sunrise"]
-            self.startup_time = next_s["sunset"]
+                self.shutdown_time = tomorrow["sunrise"]
+                self.startup_time = tomorrow["sunset"]
 
         elif self.args.operation_time == "all":
             self.shutdown_time = None
