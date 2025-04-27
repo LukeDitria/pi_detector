@@ -36,7 +36,7 @@ class SupTronicsBatteryMonitor:
         logging.info(f"Battery monitoring started. Logging to {self.log_file_path}")
 
         if self.log_remote:
-            from firestore_logger import FirestoreLogger
+            from data_loggers import FirestoreLogger
             logging.info(f"Firestore remote logging")
             try:
                 self.fire_logger = FirestoreLogger(project_id=self.project_id,
