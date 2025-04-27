@@ -3,6 +3,11 @@ Detecting and logging AI detections with a Rasberry Pi and the AI Camera or Hail
 
 # Installing Requirements
 
+### Update Pi if you haven't already
+```commandline
+sudo apt update && sudo apt full-upgrade
+```
+
 ### If using Hailo accelerator
 ```commandline
 sudo apt install hailo-all
@@ -12,6 +17,12 @@ sudo apt install hailo-all
 
 ```commandline
 sudo apt install imx500-all
+```
+
+### Reboot Pi after install!
+
+```commandline
+sudo reboot now
 ```
 
 ### Install pip requirements including system-wide packages
