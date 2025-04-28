@@ -42,7 +42,7 @@ class CameraUSB():
             os.makedirs(self.videos_detections_path, exist_ok=True)
 
         self.cam = cv2.VideoCapture(0)
-        # self.cam.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+        self.cam.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
         self.cam.set(cv2.CAP_PROP_FPS, self.fps)
         self.cam.set(cv2.CAP_PROP_FRAME_WIDTH, self.video_wh[0])
         self.cam.set(cv2.CAP_PROP_FRAME_HEIGHT, self.video_wh[1])
@@ -113,7 +113,6 @@ class CameraUSB():
         if self.video_writer is not None:
             self.video_writer.release()
             self.video_writer = None
-            print("Recording Stopped!")
             self.logger.info("Recording Stopped!")
 
     def stop_video_recording(self):
