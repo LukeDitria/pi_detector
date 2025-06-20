@@ -79,12 +79,13 @@ class DataLogger:
             except Exception as e:
                 self.logger.info(f"Image saving failed: {e}")
 
+        detection_dict_list = [detection.to_dict() for detection in detection_list]
         if self.save_data_local:
             try:
                 # Log detections locally
                 json_path = os.path.join(self.json_detections_path, f"{filename}.json")
                 with open(json_path, 'w') as f:
-                    json.dump(detection_list, f, indent=2)
+                    json.dump(detection_dict_list, f, indent=2)
 
             except Exception as e:
                 self.logger.info(f"Local detection logging failed: {e}")
@@ -92,7 +93,7 @@ class DataLogger:
         # Log detections to Firestore
         if self.log_remote and self.fire_logger:
             try:
-                detection_dict = {"detections": detection_list}
+                detection_dict = {"detections": detection_dict_list}
                 self.fire_logger.log_data_to_firestore(detection_dict,
                                                        doc_type="detection",
                                                        timestamp=timestamp,
