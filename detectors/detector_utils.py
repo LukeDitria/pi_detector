@@ -89,7 +89,7 @@ def apply_nms(detections: List[DetectionResult], nms_threshold: float = 0.3) -> 
         # Filter out detections with high IoU
         detections = [
             det for det in detections
-            if compute_iou(current.box, det.box) < nms_threshold
+            if compute_iou(current.bbox, det.bbox) < nms_threshold
         ]
 
     return kept_detections

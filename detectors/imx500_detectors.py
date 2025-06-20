@@ -8,7 +8,8 @@ from typing import Optional, Tuple, Dict, Any, List
 import numpy as np
 from libcamera import Rectangle, Size
 
-import detector_utils
+import detectors.detector_utils as detector_utils
+import utils
 
 
 class IMX500Yolo:

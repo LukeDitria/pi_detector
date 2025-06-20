@@ -5,16 +5,8 @@ from dataclasses import dataclass, asdict
 import utils
 import numpy as np
 
-import detector_utils
-
-@dataclass
-class DetectionYOLO:
-    class_name: str
-    bbox: Tuple[float, float, float, float]  # (x0, y0, x1, y1)
-    score: float
-
-    def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+import detectors.detector_utils as detector_utils
+import utils
 
 
 class HailoYolo:
