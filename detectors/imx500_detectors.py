@@ -4,21 +4,11 @@ from picamera2.devices.imx500 import (NetworkIntrinsics,
 from picamera2 import Metadata
 
 import logging
-from typing import Optional, Tuple, Dict, Any
-from dataclasses import dataclass, asdict
-import utils
+from typing import Optional, Tuple, Dict, Any, List
 import numpy as np
 from libcamera import Rectangle, Size
 
-
-@dataclass
-class DetectionYOLO:
-    class_name: str
-    bbox: Tuple[float, float, float, float]  # (x0, y0, x1, y1)
-    score: float
-
-    def to_dict(self) -> Dict[str, Any]:
-        return asdict(self)
+import detector_utils
 
 
 class IMX500Yolo:
@@ -96,19 +86,20 @@ class IMX500Yolo:
         out = self.get_scaled_obj(obj, isp_output_size, scaler_crop, sensor_output_size)
         return out.to_tuple()
 
-    def extract_detections(self, np_outputs: np.ndarray, metadata: dict) -> Optional[Dict[str, Any]]:
+    def extract_detections(self, np_outputs: np.ndarray, metadata: dict) -> Optional[List[detector_utils.DetectionResult]]:
         """Extract detections from the IMX500 output."""
         if np_outputs:
             boxes, scores, classes = np_outputs[0][0], np_outputs[1][0], np_outputs[2][0]
 
             results = []
             for box, score, category in zip(boxes, scores, classes):
-                class_name = self.class_names[int(category)]
-                if self.valid_classes and class_name not in self.valid_classes:
-                    continue
-
                 score = float(score)
                 if score >= self.confidence:
+
+                    class_name = self.class_names[int(category)]
+                    if self.valid_classes and class_name not in self.valid_classes:
+                        continue
+
                     x0, y0, x1, y1 = box
 
                     bbox = (float(x0) / self.model_wh[0], float(y0) / self.model_wh[1],
@@ -116,40 +107,40 @@ class IMX500Yolo:
 
                     bbox_xy_wh = self.convert_inference_coords(bbox, metadata)
 
-                    bbox_out = (bbox_xy_wh[0] / self.model_wh[0], bbox_xy_wh[1] / self.model_wh[1],
-                                (bbox_xy_wh[0] + bbox_xy_wh[2]) / self.model_wh[0],
-                                (bbox_xy_wh[1] + bbox_xy_wh[3]) / self.model_wh[1])
+                    box = {"xmin": bbox_xy_wh[0] / self.model_wh[0],
+                           "ymin": bbox_xy_wh[1] / self.model_wh[1],
+                           "xmax": (bbox_xy_wh[0] + bbox_xy_wh[2]) / self.model_wh[0],
+                           "ymax": (bbox_xy_wh[1] + bbox_xy_wh[3]) / self.model_wh[1]}
 
-                    results.append(DetectionYOLO(class_name=class_name, bbox=bbox_out, score=score))
+                    detection = {"score": score,
+                                 "class_name": class_name,
+                                 "bbox": box}
+
+                    results.append(detector_utils.DetectionResult.from_dict(detection))
                     logging.info(f"- {x0}, {y0}, {x1} {y1}: score {score}")
 
             if len(results) > 0:
-                detection_dicts = [det.to_dict() for det in results]
-                doc_data = {
-                    "type": "detections",
-                    "detections": detection_dicts
-                }
-                return doc_data
+                unique_results = detector_utils.apply_nms(results)
+                return unique_results
             else:
                 return None
         else:
             return None
 
-    def get_detections(self, metadata: Metadata) -> Optional[Dict[str, Any]]:
+    def get_detections(self, metadata: Metadata) -> Optional[List[detector_utils.DetectionResult]]:
         results = self.yolo_model.get_outputs(metadata, add_batch=True)
 
         # Extract and process detections
-        data_dict = self.extract_detections(results, metadata)
+        detections = self.extract_detections(results, metadata)
 
-        if data_dict:
-            detections = data_dict["detections"]
+        if detections:
             logging.info(f"Detected {len(detections)}")
             for detection in detections:
-                class_name = detection["class_name"]
-                score = detection["score"]
+                class_name = detection.class_name
+                score = detection.score
                 logging.info(f"- {class_name} with confidence {score:.2f}")
 
-        return data_dict
+        return detections
 
 
 

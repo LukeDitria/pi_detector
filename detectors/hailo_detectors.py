@@ -1,10 +1,11 @@
 from picamera2.devices import Hailo
 import logging
-from typing import Optional, Tuple, Dict, Any
+from typing import Optional, Tuple, Dict, Any, List
 from dataclasses import dataclass, asdict
 import utils
 import numpy as np
 
+import detector_utils
 
 @dataclass
 class DetectionYOLO:
@@ -42,7 +43,7 @@ class HailoYolo:
         self.logger.info("Model initialized!")
         self.logger.info(f"Model input shape HxW: {model_h}, {model_w}")
 
-    def extract_detections(self, hailo_output) -> Optional[Dict[str, Any]]:
+    def extract_detections(self, hailo_output) -> Optional[List[detector_utils.DetectionResult]]:
         """Extract detections from the HailoRT-postprocess output."""
         results = []
         for class_id, detections in enumerate(hailo_output):
@@ -51,39 +52,41 @@ class HailoYolo:
                 continue
 
             for detection in detections:
-                y0, x0, y1, x1 = detection[:4]
-                bbox = (float(x0) / self.hailo_aspect[0], float(y0) / self.hailo_aspect[1],
-                        float(x1) / self.hailo_aspect[0], float(y1) / self.hailo_aspect[1])
                 score = float(detection[4])
                 if score >= self.confidence:
-                    results.append(DetectionYOLO(class_name=class_name, bbox=bbox, score=score))
+
+                    y0, x0, y1, x1 = detection[:4]
+
+                    box = {"xmin": float(x0) / self.hailo_aspect[0],
+                           "ymin": float(y0) / self.hailo_aspect[1],
+                           "xmax": float(x1) / self.hailo_aspect[0],
+                           "ymax": float(y1) / self.hailo_aspect[1]}
+
+                    detection = {"score": score,
+                                 "class_name": class_name,
+                                 "bbox": box}
+
+                    results.append(detector_utils.DetectionResult.from_dict(detection))
 
         if len(results) > 0:
-            detection_dicts = [det.to_dict() for det in results]
-            doc_data = {
-                "type": "detections",
-                "detections": detection_dicts
-            }
-            return doc_data
+            return results
         else:
             return None
 
-
-    def get_detections(self, frame: np.ndarray) -> Optional[Dict[str, Any]]:
+    def get_detections(self, frame: np.ndarray) -> Optional[List[detector_utils.DetectionResult]]:
         results = self.yolo_model.run(frame)
 
         # Extract and process detections
-        data_dict = self.extract_detections(results)
+        detections = self.extract_detections(results)
 
-        if data_dict:
-            detections = data_dict["detections"]
+        if detections:
             logging.info(f"Detected {len(detections)}")
             for detection in detections:
-                class_name = detection["class_name"]
-                score = detection["score"]
+                class_name = detection.class_name
+                score = detection.score
                 logging.info(f"- {class_name} with confidence {score:.2f}")
 
-        return data_dict
+        return detections
 
 
 
