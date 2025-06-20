@@ -28,10 +28,12 @@ class DataLogger:
         self.firestore_project_id = firestore_project_id
 
         if auto_select_media:
-            self.data_output = os.path.join(utils.find_first_usb_drive(), "output")
-            if self.data_output is None:
+            usb_path = utils.find_first_usb_drive()
+            if usb_path is None:
                 self.data_output = output_dir
                 self.logger.warning(f"CANNOT find any media device! Defaulting to local saving!")
+            else:
+                self.data_output = os.path.join(usb_path, "output")
         else:
             self.data_output = output_dir
 
