@@ -107,20 +107,19 @@ class IMX500Yolo:
                 if self.valid_classes and class_name not in self.valid_classes:
                     continue
 
-                x0, y0, x1, y1 = box
-
-                bbox = (float(x0) / self.model_wh[0], float(y0) / self.model_wh[1],
-                        float(x1) / self.model_wh[0], float(y1) / self.model_wh[1])
-
-                bbox_xy_wh = self.convert_inference_coords(bbox, metadata)
-
-                bbox_out = (bbox_xy_wh[0] / self.model_wh[0], bbox_xy_wh[1] / self.model_wh[1],
-                            (bbox_xy_wh[0] + bbox_xy_wh[2]) / self.model_wh[0],
-                            (bbox_xy_wh[1] + bbox_xy_wh[3]) / self.model_wh[1])
-
                 score = float(score)
                 if score >= self.confidence:
-                    print(bbox_out)
+                    x0, y0, x1, y1 = box
+
+                    bbox = (float(x0) / self.model_wh[0], float(y0) / self.model_wh[1],
+                            float(x1) / self.model_wh[0], float(y1) / self.model_wh[1])
+
+                    bbox_xy_wh = self.convert_inference_coords(bbox, metadata)
+
+                    bbox_out = (bbox_xy_wh[0] / self.model_wh[0], bbox_xy_wh[1] / self.model_wh[1],
+                                (bbox_xy_wh[0] + bbox_xy_wh[2]) / self.model_wh[0],
+                                (bbox_xy_wh[1] + bbox_xy_wh[3]) / self.model_wh[1])
+
                     results.append(DetectionYOLO(class_name=class_name, bbox=bbox_out, score=score))
                     logging.info(f"- {x0}, {y0}, {x1} {y1}: score {score}")
 

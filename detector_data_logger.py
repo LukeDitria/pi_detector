@@ -81,57 +81,50 @@ class DetectorLogger:
         logging.info("Wait for startup and battery monitor checks!")
         time.sleep(self.args.start_delay + 2)
         logging.info("Starting!")
-        try:
-            while True:
-                # Generate timestamp
-                timestamp = datetime.now().astimezone()
+        while True:
+            # Generate timestamp
+            timestamp = datetime.now().astimezone()
 
-                # Capture and process frame
-                main_frame, frame, metadata = self.camera.get_frames()
-                if frame is None:
-                    continue
+            # Capture and process frame
+            main_frame, frame, metadata = self.camera.get_frames()
+            if frame is None:
+                continue
 
-                if self.args.accel_device == "imx500":
-                    # Extract the detections for the IMX500 from the metadata
-                    data_dict = self.detector.get_detections(metadata)
-                else:
-                    # Process the frame and extract the detections
-                    data_dict = self.detector.get_detections(frame)
+            if self.args.accel_device == "imx500":
+                # Extract the detections for the IMX500 from the metadata
+                data_dict = self.detector.get_detections(metadata)
+            else:
+                # Process the frame and extract the detections
+                data_dict = self.detector.get_detections(frame)
 
-                if data_dict:
-                    detections_run += 1
-                    no_detections_run = 0
+            if data_dict:
+                detections_run += 1
+                no_detections_run = 0
 
-                    if self.args.use_bgr:
-                        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                # if self.args.use_bgr:
+                #     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-                    self.data_logger.log_data(data_dict, frame, timestamp)
+                self.data_logger.log_data(data_dict, main_frame, timestamp)
 
-                else:
-                    no_detections_run += 1
-                    detections_run = 0
+            else:
+                no_detections_run += 1
+                detections_run = 0
 
-                # Trigger a video recoding event
-                if self.args.save_video:
-                    if detections_run == self.args.detection_run:
-                        if not encoding:
-                            self.camera.start_video_recording()
-                            encoding = True
-                    elif encoding and no_detections_run == self.args.buffer_secs * self.args.ips:
-                            self.camera.stop_video_recording()
-                            encoding = False
+            # Trigger a video recoding event
+            if self.args.save_video:
+                if detections_run == self.args.detection_run:
+                    if not encoding:
+                        self.camera.start_video_recording()
+                        encoding = True
+                elif encoding and no_detections_run == self.args.buffer_secs * self.args.ips:
+                        self.camera.stop_video_recording()
+                        encoding = False
 
-                # Maintain Inference Rate
-                time_diff = time.time() - last_frame_time
-                wait_time = max(0, seconds_per_frame - time_diff)
-                time.sleep(wait_time)
-                last_frame_time = time.time()
-
-        except KeyboardInterrupt:
-            logging.info("\nStopping capture...")
-
-        finally:
-            self.camera.stop_camera()
+            # Maintain Inference Rate
+            time_diff = time.time() - last_frame_time
+            wait_time = max(0, seconds_per_frame - time_diff)
+            time.sleep(wait_time)
+            last_frame_time = time.time()
 
 def main():
     logger = DetectorLogger()
