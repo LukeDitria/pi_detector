@@ -92,19 +92,19 @@ class DetectorLogger:
 
             if self.args.accel_device == "imx500":
                 # Extract the detections for the IMX500 from the metadata
-                data_dict = self.detector.get_detections(metadata)
+                data_list = self.detector.get_detections(metadata)
             else:
                 # Process the frame and extract the detections
-                data_dict = self.detector.get_detections(frame)
+                data_list = self.detector.get_detections(frame)
 
-            if data_dict:
+            if data_list:
                 detections_run += 1
                 no_detections_run = 0
 
                 # if self.args.use_bgr:
                 #     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-                self.data_logger.log_data(data_dict, main_frame, timestamp)
+                self.data_logger.log_data(data_list, main_frame, timestamp)
 
             else:
                 no_detections_run += 1

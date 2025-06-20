@@ -5,7 +5,9 @@ import pickle
 from picamera2 import Picamera2
 from picamera2 import MappedArray, Preview
 import subprocess
-from typing import Optional, Tuple, Dict, Any, Union
+from typing import Optional, Tuple, Dict, Any, Union, List
+
+import detectors.detector_utils as detector_utils
 
 
 def read_class_list(filepath: str):
@@ -134,24 +136,24 @@ def convert_h264_to_mp4(input_path: str, output_path: str, framerate: int = 30):
         print(f"FFmpeg failed: {e}")
 
 
-def draw_detections(detections: Dict[str, Any], frame: np.ndarray) -> np.ndarray:
-    for detection in detections["detections"]:
-        x0, y0, x1, y1 = detection["bbox"]
+def draw_detections(detections: List[detector_utils.DetectionResult], frame: np.ndarray) -> np.ndarray:
+    for detection in detections:
+        x0, y0, x1, y1 = detection.bbox.xyxy
 
         x0 = int(x0 * frame.shape[1])
         y0 = int(y0 * frame.shape[0])
         x1 = int(x1 * frame.shape[1])
         y1 = int(y1 * frame.shape[0])
 
-        class_name = detection["class_name"]
-        score = detection["score"]
+        class_name = detection.class_name
+        score = detection.score
 
         label = f"{class_name} ({score:.2f})"
 
         # Calculate text size and position
         (text_width, text_height), baseline = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
-        text_x = int(x0 + 5)
-        text_y = int(y0 + 15)
+        text_x = int(x0)
+        text_y = int(y0 - 15)
 
         # Draw the background rectangle on the overlay
         cv2.rectangle(frame,

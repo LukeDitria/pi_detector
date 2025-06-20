@@ -53,10 +53,11 @@ class DataLogger:
             except Exception as e:
                 self.logger.info(f"Firestore initialization failed: {e}")
                 self.logger.info("Continuing without remote logging")
+                self.fire_logger = None
         else:
             self.fire_logger = None
 
-    def log_data(self, detection_dict: dict, frame: np.ndarray, timestamp: datetime) -> None:
+    def log_data(self, detection_list: list, frame: np.ndarray, timestamp: datetime) -> None:
 
         timestamp_str = timestamp.strftime("%Y%m%d-%H%M%S-%f")[:-3]
 
@@ -66,7 +67,7 @@ class DataLogger:
         if self.save_images:
             if self.draw_bbox:
                 try:
-                    frame = utils.draw_detections(detection_dict, frame)
+                    frame = utils.draw_detections(detection_list, frame)
                 except Exception as e:
                     self.logger.info(f"Failed Drawing detections!: {e}")
             # Save the frame locally
@@ -81,7 +82,7 @@ class DataLogger:
                 # Log detections locally
                 json_path = os.path.join(self.json_detections_path, f"{filename}.json")
                 with open(json_path, 'w') as f:
-                    json.dump(detection_dict, f, indent=2)
+                    json.dump(detection_list, f, indent=2)
 
             except Exception as e:
                 self.logger.info(f"Local detection logging failed: {e}")
@@ -89,6 +90,7 @@ class DataLogger:
         # Log detections to Firestore
         if self.log_remote and self.fire_logger:
             try:
+                detection_dict = {"detections": detection_list}
                 self.fire_logger.log_data_to_firestore(detection_dict,
                                                        doc_type="detection",
                                                        timestamp=timestamp,
