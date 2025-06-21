@@ -136,7 +136,7 @@ def convert_h264_to_mp4(input_path: str, output_path: str, framerate: int = 30):
         print(f"FFmpeg failed: {e}")
 
 
-def draw_detections(detections: List[detector_utils.DetectionResult], frame: np.ndarray) -> np.ndarray:
+def draw_detections(detections: List[detector_utils.DetectionResultYOLO], frame: np.ndarray) -> np.ndarray:
     for detection in detections:
         x0, y0, x1, y1 = detection.bbox.xyxy
 

@@ -2,8 +2,6 @@
 from typing import Any, List, Dict, Optional, Union, Tuple
 from dataclasses import dataclass, asdict
 
-import numpy as np
-
 @dataclass
 class BoundingBox:
     xmin: float
@@ -24,13 +22,13 @@ class BoundingBox:
         }
 
 @dataclass
-class DetectionResult:
+class DetectionResultYOLO:
     score: float
     class_name: str
     bbox: BoundingBox
 
     @classmethod
-    def from_dict(cls, detection_dict: dict) -> 'DetectionResult':
+    def from_dict(cls, detection_dict: dict) -> 'DetectionResultYOLO':
         return cls(
             score=detection_dict['score'],
             class_name=detection_dict['class_name'],
@@ -47,6 +45,22 @@ class DetectionResult:
             'score': self.score,
             'class_name': self.class_name,
             'bbox': self.bbox.to_dict()
+        }
+        return result
+
+@dataclass
+class MotionDetectionResult:
+    motion_percentage: float
+
+    @classmethod
+    def from_dict(cls, detection_dict: dict) -> 'MotionDetectionResult':
+        return cls(
+            motion_percentage=detection_dict['motion_percentage']
+        )
+
+    def to_dict(self):
+        result = {
+            'motion_percentage': self.motion_percentage
         }
         return result
 
@@ -70,7 +84,7 @@ def compute_iou(box1: BoundingBox, box2: BoundingBox) -> float:
 
     return intersection / union
 
-def apply_nms(detections: List[DetectionResult], nms_threshold: float = 0.3) -> List[DetectionResult]:
+def apply_nms(detections: List[DetectionResultYOLO], nms_threshold: float = 0.65) -> List[DetectionResultYOLO]:
     """
     Apply Non-Maximum Suppression to filter overlapping detections.
     """

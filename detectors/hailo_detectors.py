@@ -35,7 +35,7 @@ class HailoYolo:
         self.logger.info("Model initialized!")
         self.logger.info(f"Model input shape HxW: {model_h}, {model_w}")
 
-    def extract_detections(self, hailo_output) -> Optional[List[detector_utils.DetectionResult]]:
+    def extract_detections(self, hailo_output) -> Optional[List[detector_utils.DetectionResultYOLO]]:
         """Extract detections from the HailoRT-postprocess output."""
         results = []
         for class_id, detections in enumerate(hailo_output):
@@ -58,14 +58,14 @@ class HailoYolo:
                                  "class_name": class_name,
                                  "bbox": box}
 
-                    results.append(detector_utils.DetectionResult.from_dict(detection))
+                    results.append(detector_utils.DetectionResultYOLO.from_dict(detection))
 
         if len(results) > 0:
             return results
         else:
             return None
 
-    def get_detections(self, frame: np.ndarray) -> Optional[List[detector_utils.DetectionResult]]:
+    def get_detections(self, frame: np.ndarray) -> Optional[List[detector_utils.DetectionResultYOLO]]:
         results = self.yolo_model.run(frame)
 
         # Extract and process detections

@@ -1,7 +1,10 @@
 import logging
 import cv2
 import numpy as np
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any, Tuple, List
+
+import detectors.detector_utils as detector_utils
+
 
 class MotionDetector():
     def __init__(self, threshold: int = 25, motion_percent: int = 25):
@@ -33,23 +36,24 @@ class MotionDetector():
 
         return has_motion, motion_percentage
 
-    def get_detections(self, frame: np.ndarray) -> Optional[Dict[str, Any]]:
+    def get_detections(self, frame: np.ndarray) -> Optional[List[detector_utils.MotionDetectionResult]]:
         current_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        doc_data = None
+        det_data_list = None
         if self.previous_frame is not None:
             try:
                 has_motion, motion_percentage = self.detect_motion(current_frame)
                 if has_motion:
                     self.logger.info(f"Motion detected!")
-                    doc_data = {
-                        "type": "detections",
+                    det_data = {
                         "motion_percentage": motion_percentage
                     }
+                    det_data_list = [detector_utils.MotionDetectionResult.from_dict(det_data)]
+
             except Exception as e:
                 self.logger.info(f"Could not process frames! {e}")
                 self.logger.info(f"Current frame: {current_frame.shape}")
                 self.logger.info(f"Previous frame: {self.previous_frame.shape}")
 
         self.previous_frame = current_frame.copy()
-        return doc_data
+        return det_data_list

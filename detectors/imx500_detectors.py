@@ -87,7 +87,7 @@ class IMX500Yolo:
         out = self.get_scaled_obj(obj, isp_output_size, scaler_crop, sensor_output_size)
         return out.to_tuple()
 
-    def extract_detections(self, np_outputs: np.ndarray, metadata: dict) -> Optional[List[detector_utils.DetectionResult]]:
+    def extract_detections(self, np_outputs: np.ndarray, metadata: dict) -> Optional[List[detector_utils.DetectionResultYOLO]]:
         """Extract detections from the IMX500 output."""
         if np_outputs:
             boxes, scores, classes = np_outputs[0][0], np_outputs[1][0], np_outputs[2][0]
@@ -117,18 +117,18 @@ class IMX500Yolo:
                                  "class_name": class_name,
                                  "bbox": box}
 
-                    results.append(detector_utils.DetectionResult.from_dict(detection))
+                    results.append(detector_utils.DetectionResultYOLO.from_dict(detection))
                     logging.info(f"- {x0}, {y0}, {x1} {y1}: score {score}")
 
             if len(results) > 0:
-                unique_results = detector_utils.apply_nms(results)
+                unique_results = detector_utils.apply_nms(results, 0.4)
                 return unique_results
             else:
                 return None
         else:
             return None
 
-    def get_detections(self, metadata: Metadata) -> Optional[List[detector_utils.DetectionResult]]:
+    def get_detections(self, metadata: Metadata) -> Optional[List[detector_utils.DetectionResultYOLO]]:
         results = self.yolo_model.get_outputs(metadata, add_batch=True)
 
         # Extract and process detections
