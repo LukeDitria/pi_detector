@@ -42,6 +42,8 @@ def parse_arguments():
                         help="Frames per second (default: 30)")
     parser.add_argument("--ips", type=int, default=5,
                         help="Inferences per second (default: 5)")
+    parser.add_argument("--lps", type=int,
+                        help="Logs per second, if defined image saves and detection logging will occur at this rate")
     parser.add_argument("--rotate_img", type=str, default="none",
                         help="Rotate/flip the input image: none, cw, ccw, flip", choices=["none", "cw", "ccw", "flip"])
 

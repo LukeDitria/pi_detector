@@ -77,6 +77,12 @@ class DetectorLogger:
 
         seconds_per_frame = 1/self.args.ips
         last_frame_time = time.time()
+        last_log_time = time.time()
+
+        if self.args.lps is not None:
+            seconds_per_log = 1/self.args.lps
+        else:
+            seconds_per_log = 0
 
         logging.info("Wait for startup and battery monitor checks!")
         time.sleep(self.args.start_delay + 2)
@@ -101,11 +107,10 @@ class DetectorLogger:
                 detections_run += 1
                 no_detections_run = 0
 
-                # if self.args.use_bgr:
-                #     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-                self.data_logger.log_data(data_list, main_frame, timestamp)
-
+                # Log rate can be different to inference rate
+                if time.time() - last_log_time >= seconds_per_log:
+                    last_log_time = time.time()
+                    self.data_logger.log_data(data_list, main_frame, timestamp)
             else:
                 no_detections_run += 1
                 detections_run = 0
